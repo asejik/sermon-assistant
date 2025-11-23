@@ -74,36 +74,33 @@ def load_data():
 def extract_search_terms(user_query):
     try:
         if not GEMINI_API_KEY:
-            # Fallback: Just return the query as a keyword, no date filters
-            return {"keywords": user_query, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
+            return {"keywords": user_query, "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash') # Using the requested 2.5 model
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
-        # We must tell AI what today is so it can calculate "yesterday" or "last week"
         today_str = datetime.date.today().strftime("%Y-%m-%d")
 
         prompt = f"""
         System: You are a smart search parser for a church database. Today is {today_str}.
 
         Task: Analyze the user's query and extract:
-        1. Keywords (Themes, Topics, Scripture, Preacher).
-        2. Date Range (Start and End dates in YYYY-MM-DD format).
-        3. Limit (How many results to show. Default to 10).
-        4. Sort Order ("newest" if they ask for latest/recent, otherwise "relevance").
+        1. Keywords (The core topic, e.g. "Love", "Faith". Exclude the preacher's name from this).
+        2. Preacher (The name of the person preaching, e.g. "Temitope", "Israel". Ignore titles like Pastor/Apostle if possible).
+        3. Date Range (Start and End dates).
+        4. Limit (Number of results).
+        5. Sort Order.
 
         Rules:
-        - If user says "2025", start=2025-01-01, end=2025-12-31.
-        - If user says "April 2022", start=2022-04-01, end=2022-04-30.
-        - If user says "Yesterday", calculate the date based on today ({today_str}).
-        - If user says "Latest message", set sort="newest" and limit=1.
-        - Return ONLY raw JSON. No markdown formatting.
+        - If query is "Messages by Pastor Israel on Faith", Keywords="Faith", Preacher="Israel".
+        - If query is "Sermons by Apostle Areo", Preacher="Areo".
 
         User Query: "{user_query}"
 
         Output JSON format:
         {{
             "keywords": "string",
+            "preacher": "string" or null,
             "start_date": "YYYY-MM-DD" or null,
             "end_date": "YYYY-MM-DD" or null,
             "limit": integer,
@@ -111,45 +108,51 @@ def extract_search_terms(user_query):
         }}
         """
         response = model.generate_content(prompt)
-
-        # Clean up response (sometimes AI adds ```json ... ```)
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
 
     except Exception as e:
-        # Fallback if AI fails
         print(f"AI Error: {e}")
-        return {"keywords": user_query, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
+        return {"keywords": user_query, "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
 # --- 3. Search Engine (Advanced) ---
 def search_sermons(search_params, df):
     if df.empty: return pd.DataFrame()
 
-    # 1. Apply Date Filter FIRST (if dates exist)
-    # This makes the search faster and accurate
+    # 1. Apply Date Filter
     if search_params.get("start_date"):
         try:
             start_dt = pd.to_datetime(search_params["start_date"])
             df = df[df['Date'] >= start_dt]
-        except: pass # Ignore invalid dates
+        except: pass
 
     if search_params.get("end_date"):
         try:
             end_dt = pd.to_datetime(search_params["end_date"])
-            # Add one day to include the end date fully if needed, or just compare
             df = df[df['Date'] <= end_dt]
         except: pass
 
-    # 2. Keyword Search
-    # If there are keywords, we Fuzzy Match.
-    # If keywords are empty (e.g. user just said "Messages from 2025"), we skip scoring and just return the dated rows.
+    # 2. Apply Preacher Filter (NEW)
+    preacher_query = search_params.get("preacher")
+    if preacher_query and preacher_query.lower() != "none":
+        # We filter the dataframe to only keep rows where the Preacher name matches loosely
+        # Threshold is lower (60) to handle "Tope" vs "Temitope" or "Israel" vs "Pastor Israel"
+        df = df[df['Preacher'].apply(lambda x: fuzz.partial_ratio(preacher_query.lower(), str(x).lower()) > 60)]
+
+    # 3. Keyword Search
     query_text = search_params.get("keywords", "")
 
-    if query_text and query_text.lower() != "none":
+    # If we filtered by preacher/date and keywords are empty, return the filtered list
+    if not query_text or query_text.lower() == "none":
+        results = df.copy()
+        results['matches_found'] = 1
+        results['match_score'] = 100
+    else:
+        # Standard Keyword Fuzzy Match
         topics = query_text.replace(" and ", ",").split(",")
         topics = [t.strip() for t in topics if t.strip()]
 
-        df = df.copy() # Avoid SettingWithCopy warnings
+        df = df.copy()
         df['match_score'] = 0
         df['matches_found'] = 0
 
@@ -157,8 +160,9 @@ def search_sermons(search_params, df):
             total_score = 0
             matches = 0
             title = str(row.get('Title', ''))
-            preacher = str(row.get('Preacher', ''))
-            row_text = f"{title} {preacher}".lower()
+            # We don't need to search Preacher column for topics anymore, just Title
+            # This makes topic search cleaner
+            row_text = f"{title}".lower()
 
             for topic in topics:
                 score = fuzz.partial_ratio(topic.lower(), row_text)
@@ -169,21 +173,14 @@ def search_sermons(search_params, df):
             df.at[index, 'match_score'] = total_score
             df.at[index, 'matches_found'] = matches
 
-        # Filter: Keep matches
         results = df[df['matches_found'] > 0].copy()
-    else:
-        # No keywords provided, just return the date-filtered list
-        results = df.copy()
-        results['matches_found'] = 1 # Dummy value for sorting
-        results['match_score'] = 0
 
-    # 3. Sorting
+    # 4. Sorting
     if not results.empty:
         sort_order = search_params.get("sort", "relevance")
         if sort_order == "newest":
             results = results.sort_values(by=['Date'], ascending=[False])
         else:
-            # Default: Match Strength then Date
             results = results.sort_values(by=['matches_found', 'match_score', 'Date'], ascending=[False, False, False])
 
     return results
@@ -279,6 +276,9 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
                 # Debug Info (Optional - you can hide this later)
                 if search_params.get("start_date") or search_params.get("limit") != 10:
                      st.caption(f"🤖 *Filter:* Date={search_params.get('start_date')} to {search_params.get('end_date')} | Limit={search_params.get('limit')}")
+
+                if search_params.get("preacher") or search_params.get("limit") != 10:
+                     st.caption(f"🤖 *Filter:* Preacher='{search_params.get('preacher')}' | Limit={search_params.get('limit')}")
 
                 if results.empty:
                     response_text = f"I couldn't find sermons matching that criteria."
