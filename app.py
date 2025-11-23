@@ -11,7 +11,6 @@ from datetime import timedelta
 # --- Configuration ---
 st.set_page_config(page_title="Sermon Assistant", layout="wide")
 
-# Securely Load Keys
 if "gemini" in st.secrets:
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 else:
@@ -64,7 +63,7 @@ def load_data():
         st.error(f"⚠️ Connection Error: {e}")
         return pd.DataFrame()
 
-# --- 2. The Brain (Gemini 2.5) ---
+# --- 2. The Brain (Improved Prompt) ---
 def extract_search_terms(user_query):
     try:
         if not GEMINI_API_KEY:
@@ -79,17 +78,19 @@ def extract_search_terms(user_query):
         System: You are a smart search parser for a church database. Today is {today_str}.
 
         Task: Analyze the user's query and extract:
-        1. Keywords (The topic/theme. Remove Preacher names from this).
-        2. Preacher (Name only. Ignore titles like Pastor, Apostle).
-        3. Date Range (YYYY-MM-DD).
-        4. Limit (Default 10).
-        5. Sort ("newest" or "relevance").
+        1. Keywords: The core topic (e.g. "Faith", "Love").
+           CRITICAL: If the user query is ONLY about a preacher (e.g. "Messages by Pastor Seun"), leave Keywords EMPTY.
+           Do NOT include words like "Message", "Sermon", "Preach", "Series" in Keywords.
+        2. Preacher: Name only. Remove titles (Pastor, Apostle).
+        3. Date Range: YYYY-MM-DD.
+        4. Limit: Integer (Default 10).
+        5. Sort: "newest" or "relevance".
 
         User Query: "{user_query}"
 
         Output JSON format:
         {{
-            "keywords": "string",
+            "keywords": "string" or null,
             "preacher": "string" or null,
             "start_date": "string" or null,
             "end_date": "string" or null,
@@ -101,41 +102,28 @@ def extract_search_terms(user_query):
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
     except Exception as e:
-        # Fallback
         return {"keywords": user_query, "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
-# --- HELPER: Preacher Name Normalizer ---
+# --- HELPER: Flexible Name Matcher ---
 def check_name_match(query_name, db_name):
-    """
-    Smart Logic:
-    1. Removes titles (Pastor, Apostle, etc).
-    2. If query is 1 word ("Seun"), use loose matching (allows "Seun Akinloye").
-    3. If query is 2+ words ("Damilola Faleye"), use strict matching (blocks "Ibukun Faleye").
-    """
     if not query_name or not db_name: return False
 
-    # List of titles to strip out
+    # Strip titles to ensure clean comparison
     titles = ["pastor", "apostle", "rev", "reverend", "prophet", "evangelist", "min", "minister", "dr", "mr", "mrs", "pst"]
 
     q_clean = query_name.lower()
     t_clean = str(db_name).lower()
 
-    # Remove titles
     for title in titles:
         q_clean = q_clean.replace(f"{title} ", "").strip()
         t_clean = t_clean.replace(f"{title} ", "").strip()
 
-    # Match Logic
-    if " " not in q_clean:
-        # One word query (e.g. "Seun") -> Use Partial Ratio (High Threshold)
-        # 85 prevents "Seun" matching "Segun" but allows "Seun" in "Seun Akinloye"
-        return fuzz.partial_ratio(q_clean, t_clean) >= 85
-    else:
-        # Multi word query (e.g. "Damilola Faleye") -> Use Token Sort (Very High Threshold)
-        # This prevents "Damilola Faleye" matching "Ibukun Faleye" just because they share "Faleye"
-        return fuzz.token_sort_ratio(q_clean, t_clean) >= 70
+    # Use Partial Ratio for everything.
+    # This allows "Seun" to match "Seun Akinloye" and "Damilola" to match "Damilola Faleye"
+    # Threshold 75 is safe enough to avoid matching "Dele" with "Seun"
+    return fuzz.partial_ratio(q_clean, t_clean) >= 75
 
-# --- 3. The Search Engine ---
+# --- 3. The Search Engine (Stop-Words Added) ---
 def search_sermons(search_params, df):
     if df.empty: return pd.DataFrame()
 
@@ -152,24 +140,35 @@ def search_sermons(search_params, df):
             df = df[df['Date'] <= end_dt]
         except: pass
 
-    # 2. Smart Preacher Filter
+    # 2. Preacher Filter
     preacher_query = search_params.get("preacher")
     if preacher_query and preacher_query.lower() != "none":
-        # Apply the custom check_name_match function
         df = df[df['Preacher'].apply(lambda x: check_name_match(preacher_query, x))]
 
     # 3. Keyword Search
     query_text = search_params.get("keywords", "")
 
-    # If no keywords (only Preacher/Date), return all matches
-    if not query_text or query_text.lower() == "none" or query_text == "":
+    # --- STOP WORD LOGIC ---
+    # Even if AI sends "message", we ignore it here so we don't return 0 results
+    stop_words = ["message", "messages", "sermon", "sermons", "preaching", "preached", "series", "audio", "mp3"]
+
+    # Clean the query
+    valid_topics = []
+    if query_text and query_text.lower() != "none":
+        raw_topics = query_text.replace(" and ", ",").split(",")
+        for t in raw_topics:
+            clean_t = t.strip().lower()
+            if clean_t not in stop_words and clean_t != "":
+                valid_topics.append(clean_t)
+
+    # Check if we have any VALID keywords left
+    if not valid_topics:
+        # If no real keywords (e.g. user just said "Messages by Seun"), return all preacher matches
         results = df.copy()
         results['matches_found'] = 1
         results['match_score'] = 100
     else:
-        topics = query_text.replace(" and ", ",").split(",")
-        topics = [t.strip() for t in topics if t.strip()]
-
+        # We have real keywords (e.g. "Faith"), so we filter
         df = df.copy()
         df['match_score'] = 0
         df['matches_found'] = 0
@@ -180,8 +179,8 @@ def search_sermons(search_params, df):
             title = str(row.get('Title', ''))
             row_text = f"{title}".lower()
 
-            for topic in topics:
-                score = fuzz.partial_ratio(topic.lower(), row_text)
+            for topic in valid_topics:
+                score = fuzz.partial_ratio(topic, row_text)
                 if score > 75:
                     total_score += score
                     matches += 1
@@ -209,16 +208,14 @@ if "search_memory" not in st.session_state:
 
 df = load_data()
 
-# Display History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- SMART BUTTON LOGIC ---
+# Button Logic
 mem_results = st.session_state.search_memory["results"]
 mem_index = st.session_state.search_memory["current_index"]
 
-# FIX: Added strict type checks to prevent TypeError
 if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstance(mem_index, int):
     if mem_index < len(mem_results):
         remaining = len(mem_results) - mem_index
@@ -226,11 +223,8 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
         with col2:
             if st.button(f"⬇️ Load Next 10 Results ({remaining} remaining)", type="primary", use_container_width=True):
                 st.session_state.messages.append({"role": "user", "content": "Show more results"})
-
-                # Fetch Batch
                 batch = mem_results.iloc[mem_index : mem_index + 10]
                 response_text = "Here are the next set of results:"
-
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
@@ -238,13 +232,12 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
                     response_text += f"- **Preacher:** {row.get('Preacher', '')}\n"
                     response_text += f"- **Date:** {date_str}\n"
                     response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
-
                 st.session_state.search_memory["current_index"] += 10
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.rerun()
 
-# --- INPUT LOGIC ---
-if prompt := st.chat_input("Search (e.g. 'Messages by Pastor Seun on Faith')..."):
+# Input Logic
+if prompt := st.chat_input("Search..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -253,7 +246,6 @@ if prompt := st.chat_input("Search (e.g. 'Messages by Pastor Seun on Faith')..."
         if df.empty:
             response_text = "⚠️ Database not connected. Check logs."
         else:
-            # AI SEARCH
             with st.spinner("Thinking & Searching..."):
                 search_params = extract_search_terms(prompt)
                 results = search_sermons(search_params, df)
@@ -261,10 +253,10 @@ if prompt := st.chat_input("Search (e.g. 'Messages by Pastor Seun on Faith')..."
             st.session_state.search_memory["results"] = results
             st.session_state.search_memory["current_index"] = 0
 
-            # Debug (Shows what filters were applied)
+            # DEBUG: Show what AI found to help you verify
             debug_msg = []
             if search_params.get("preacher"): debug_msg.append(f"Preacher: {search_params['preacher']}")
-            if search_params.get("limit") != 10: debug_msg.append(f"Limit: {search_params['limit']}")
+            if search_params.get("keywords"): debug_msg.append(f"Keywords: {search_params['keywords']}")
             if debug_msg: st.caption(f"🤖 *Filter:* {' | '.join(debug_msg)}")
 
             if results.empty:
@@ -272,10 +264,8 @@ if prompt := st.chat_input("Search (e.g. 'Messages by Pastor Seun on Faith')..."
             else:
                 count = len(results)
                 user_limit = search_params.get("limit", 10)
-
                 response_text = f"Found {count} sermons. Here are the results:"
 
-                # Set initial batch
                 batch_size = user_limit
                 batch = results.iloc[0:batch_size]
                 st.session_state.search_memory["current_index"] = batch_size
