@@ -4,28 +4,27 @@ from google.oauth2.service_account import Credentials
 import gspread
 from thefuzz import process, fuzz
 import google.generativeai as genai
-import os
 
 # --- Configuration ---
-# Fetch from Secrets (Cloud) or Environment (Local fallback)
+# 1. Setup Page Config First
+st.set_page_config(page_title="Sermon Assistant", layout="wide")
+
+# 2. Securely Load Keys (Cloud or Local)
+# Gemini Key
 if "gemini" in st.secrets:
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 else:
-    # This ensures we don't crash locally, but we NEVER hardcode the key here
-    GEMINI_API_KEY = ""
+    GEMINI_API_KEY = "" # Fallback to prevent crash, will show error later if needed
 
+# Sheet ID
 if "sheets" in st.secrets:
     SHEET_ID = st.secrets["sheets"]["sheet_id"]
 else:
-    SHEET_ID = "1q4-sO9g_lq9euOE-mN9rDysRjFbWJa_l8uaJ3nq2ffA" # This ID is safe to be public
+    SHEET_ID = "1q4-sO9g_lq9euOE-mN9rDysRjFbWJa_l8uaJ3nq2ffA"
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
-# ⚠️ PASTE YOUR GEMINI API KEY HERE
-GEMINI_API_KEY = ""
-s
-# --- Setup Page ---
-st.set_page_config(page_title="Sermon Assistant", layout="wide")
+# --- UI Header ---
 st.title("Citizens of Light Sermon Assistant")
 
 with st.sidebar:
@@ -36,17 +35,15 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.search_memory = {"last_query": "", "results": pd.DataFrame(), "current_index": 0}
         st.rerun()
-
     st.markdown("---")
     st.caption("Powered by Gemini 2.5 & Google Sheets")
 
-# --- 1. Data Loading Function (Cloud Ready) ---
+# --- 1. Data Loading Function ---
 @st.cache_data(ttl=600)
 def load_data():
     try:
         # Check if we are in the cloud (using secrets)
         if "gcp_service_account" in st.secrets:
-            # Load from Secrets (Cloud Mode)
             service_account_info = st.secrets["gcp_service_account"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         else:
@@ -70,42 +67,31 @@ def load_data():
         st.error(f"⚠️ Connection Error: {e}")
         return pd.DataFrame()
 
-# --- 2. The "Brain" (Gemini Integration) ---
+# --- 2. The Brain (Gemini) ---
 def extract_search_terms(user_query):
-    """
-    Uses Gemini to convert stories, scriptures, or vague ideas into search keywords.
-    """
     try:
+        if not GEMINI_API_KEY:
+            return user_query # Fallback if no key
+
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Note: Using 1.5-flash as it is the most stable current release for this library
 
         prompt = f"""
-        You are a theological assistant for a church database.
-        The user will search for a sermon using a story, a bible verse, or a topic.
-        Your job is to return a strict comma-separated string of keywords (Themes, Topics, Synonyms).
-
-        Rules:
-        1. If it's a story (e.g. "Prodigal Son"), return the themes (e.g. "Restoration, Forgiveness, Grace").
-        2. If it's a verse (e.g. "John 3:16"), return the core meaning (e.g. "Love, Salvation, Eternal Life").
-        3. If it's a topic, add 1-2 synonyms.
-        4. Do NOT return sentences. Only keywords separated by commas.
-
+        You are a theological assistant.
+        Convert this user query into 3-5 comma-separated keywords (Themes, Topics, Bible Characters).
         User Query: "{user_query}"
         Keywords:
         """
-
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        # If AI fails (e.g. no internet), just return the original query
-        print(f"AI Error: {e}")
         return user_query
 
-# --- 3. The Search Engine ---
+# --- 3. Search Engine ---
 def search_sermons(query, expanded_keywords, df):
-    if df.empty: return pd.DataFrame()
+    if df.empty: return pd.DataFrame(), []
 
-    # Combine original query + AI keywords
     full_search_text = f"{query}, {expanded_keywords}"
     topics = full_search_text.replace(" and ", ",").split(",")
     topics = [t.strip() for t in topics if t.strip()]
@@ -136,7 +122,7 @@ def search_sermons(query, expanded_keywords, df):
 
     return results, topics
 
-# --- 4. Chat Logic & Memory ---
+# --- 4. Main App Loop ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "search_memory" not in st.session_state:
@@ -155,7 +141,7 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
 
     with st.chat_message("assistant"):
         if df.empty:
-            response_text = "⚠️ Database not connected."
+            response_text = "⚠️ Database not connected. Check logs."
         else:
             is_continuation = prompt.lower() in ["next", "more", "continue"]
 
@@ -164,24 +150,21 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
                 start_index = st.session_state.search_memory["current_index"]
                 response_text = "Here are more results:"
             else:
-                with st.spinner("Analyzing query & Searching archives..."):
-                    # 1. Call the Brain
+                with st.spinner("Thinking & Searching..."):
                     ai_keywords = extract_search_terms(prompt)
-
-                    # 2. Search the Sheet
-                    results, used_keywords = search_sermons(prompt, ai_keywords, df)
+                    results, _ = search_sermons(prompt, ai_keywords, df)
 
                 st.session_state.search_memory["results"] = results
                 st.session_state.search_memory["current_index"] = 0
                 start_index = 0
 
-                # Debug: Show user what the AI inferred (Instruction 5 & 6)
-                st.caption(f"🤖 *AI Detected Themes:* {ai_keywords}")
+                if expanded_msg := ai_keywords if ai_keywords != prompt else None:
+                     st.caption(f"🤖 *AI Themes:* {expanded_msg}")
 
                 if results.empty:
                     response_text = f"I couldn't find sermons for '{prompt}'. Try simpler keywords."
                 else:
-                    response_text = f"Found {len(results)} sermons matching your themes. Top results:"
+                    response_text = f"Found {len(results)} sermons. Top results:"
 
             batch = results.iloc[start_index : start_index + 10]
 
