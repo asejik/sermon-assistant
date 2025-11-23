@@ -133,10 +133,47 @@ if "search_memory" not in st.session_state:
 
 df = load_data()
 
+# 1. Display Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# 2. Check for "Next" Button Availability
+# We check if we have results and if we haven't shown them all yet
+mem_results = st.session_state.search_memory["results"]
+mem_index = st.session_state.search_memory["current_index"]
+
+# If there are results, and the current index is less than the total count...
+if not mem_results.empty and mem_index < len(mem_results):
+    remaining = len(mem_results) - mem_index
+    # Create a centered button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button(f"⬇️ Load Next 10 Results ({remaining} remaining)", type="primary", use_container_width=True):
+            # --- HANDLE BUTTON CLICK ---
+            # 1. Add a "user" message so the flow looks natural
+            st.session_state.messages.append({"role": "user", "content": "Show more results"})
+
+            # 2. Generate the batch
+            batch = mem_results.iloc[mem_index : mem_index + 10]
+            response_text = "Here are the next set of results:"
+
+            for _, row in batch.iterrows():
+                date_val = row.get('Date', pd.NaT)
+                date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
+                response_text += f"\n\n**Message Title:** {row.get('Title', '')}\n"
+                response_text += f"- **Preacher:** {row.get('Preacher', '')}\n"
+                response_text += f"- **Date:** {date_str}\n"
+                response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
+
+            # 3. Update Memory
+            st.session_state.search_memory["current_index"] += 10
+
+            # 4. Append to history and Rerun
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
+            st.rerun()
+
+# 3. User Text Input
 if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -146,31 +183,46 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
         if df.empty:
             response_text = "⚠️ Database not connected. Check logs."
         else:
+            # We don't need "Next" logic here anymore since the button handles it
+            # But we keep it just in case they type it manually
             is_continuation = prompt.lower() in ["next", "more", "continue"]
 
             if is_continuation and not st.session_state.search_memory["results"].empty:
+                # Manual typed "next" logic
                 results = st.session_state.search_memory["results"]
                 start_index = st.session_state.search_memory["current_index"]
-                response_text = "Here are more results:"
+
+                if start_index >= len(results):
+                     response_text = "There are no more results for this search."
+                     batch = pd.DataFrame() # Empty
+                else:
+                    response_text = "Here are more results:"
+                    batch = results.iloc[start_index : start_index + 10]
+                    st.session_state.search_memory["current_index"] += 10
+
             else:
+                # NEW SEARCH
                 with st.spinner("Thinking & Searching..."):
                     ai_keywords = extract_search_terms(prompt)
                     results, _ = search_sermons(prompt, ai_keywords, df)
 
                 st.session_state.search_memory["results"] = results
-                st.session_state.search_memory["current_index"] = 0
-                start_index = 0
+                st.session_state.search_memory["current_index"] = 0 # Reset
 
+                # Debug info
                 if expanded_msg := ai_keywords if ai_keywords != prompt else None:
                      st.caption(f"🤖 *AI Themes:* {expanded_msg}")
 
                 if results.empty:
                     response_text = f"I couldn't find sermons for '{prompt}'. Try simpler keywords."
+                    batch = pd.DataFrame()
                 else:
                     response_text = f"Found {len(results)} sermons. Top results:"
+                    # Grab first 10
+                    batch = results.iloc[0:10]
+                    st.session_state.search_memory["current_index"] = 10
 
-            batch = results.iloc[start_index : start_index + 10]
-
+            # Process the batch (if any)
             if not batch.empty:
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
@@ -180,9 +232,6 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
                     response_text += f"- **Date:** {date_str}\n"
                     response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
 
-                st.session_state.search_memory["current_index"] += 10
-            elif is_continuation:
-                 response_text = "No more results."
-
         st.markdown(response_text)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.rerun() # Force refresh to show the "Next" button if applicable
