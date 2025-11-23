@@ -70,12 +70,13 @@ def load_data():
 # --- 2. The Brain (Gemini) ---
 def extract_search_terms(user_query):
     try:
+        # Debug: Check if key exists
         if not GEMINI_API_KEY:
-            return user_query # Fallback if no key
+            st.error("⚠️ Error: Gemini API Key is missing in Secrets.")
+            return user_query
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        # Note: Using 1.5-flash as it is the most stable current release for this library
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
         prompt = f"""
         You are a theological assistant.
@@ -86,6 +87,8 @@ def extract_search_terms(user_query):
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
+        # SHOW THE ERROR ON SCREEN
+        st.error(f"Brain Error: {e}")
         return user_query
 
 # --- 3. Search Engine ---
