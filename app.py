@@ -53,24 +53,14 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
                 st.session_state.messages.append({"role": "user", "content": "Show more results"})
                 batch = mem_results.iloc[mem_index : mem_index + 10]
 
-                # HTML Construction
+                # HTML Construction (NO INDENTATION TO PREVENT BUGS)
                 response_html = ""
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
 
-                    response_html += f"""
-                    <div class="sermon-card">
-                        <div class="sermon-title">{row.get('Title', '')}</div>
-                        <div class="sermon-details">
-                            <span>👤 {row.get('Preacher', '')}</span>
-                            <span>📅 {date_str}</span>
-                        </div>
-                        <a href="{row.get('DownloadLink', '#')}" target="_blank" class="download-link">
-                            🔗 Download Sermon
-                        </a>
-                    </div>
-                    """
+                    response_html += f"""<div class="sermon-card"><div class="sermon-title">{row.get('Title', '')}</div><div class="sermon-details"><span>👤 {row.get('Preacher', '')}</span><span>📅 {date_str}</span></div><a href="{row.get('DownloadLink', '#')}" target="_blank" class="download-link">🔗 Download Sermon</a></div>"""
+
                 st.session_state.search_memory["current_index"] += 10
                 st.session_state.messages.append({"role": "assistant", "content": response_html})
                 st.rerun()
@@ -83,7 +73,7 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
 
     with st.chat_message("assistant"):
         if df.empty:
-            response_html = "<div style='color:red;'>⚠️ Database not connected. Check logs.</div>"
+            response_html = "<div style='color:#ef4444;'>⚠️ Database not connected. Check logs.</div>"
         else:
             with st.spinner("Searching for requested sermon, please wait..."):
                 search_params = backend.extract_search_terms(prompt)
@@ -105,7 +95,7 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
 
             response_html = ""
             if debug_msg:
-                response_html += f"""<div class="ai-caption">🤖 <b>AI Detected Themes:</b> {' | '.join(debug_msg)}</div>"""
+                response_html += f"""<div class="ai-caption">✨ <b>AI Detected Themes:</b> {' | '.join(debug_msg)}</div>"""
 
             if results.empty:
                 response_html += f"<p>I couldn't find any exact matches for '<b>{prompt}</b>', and no related topics were found.</p>"
@@ -141,19 +131,8 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
 
-                    # STRICT HTML STRUCTURE
-                    response_html += f"""
-                    <div class="sermon-card">
-                        <div class="sermon-title">{row.get('Title', '')}</div>
-                        <div class="sermon-details">
-                            <span>👤 {row.get('Preacher', '')}</span>
-                            <span>📅 {date_str}</span>
-                        </div>
-                        <a href="{row.get('DownloadLink', '#')}" target="_blank" class="download-link">
-                            🔗 Download Sermon
-                        </a>
-                    </div>
-                    """
+                    # STRICT SINGLE LINE HTML TO PREVENT INDENTATION BUGS
+                    response_html += f"""<div class="sermon-card"><div class="sermon-title">{row.get('Title', '')}</div><div class="sermon-details"><span>👤 {row.get('Preacher', '')}</span><span>📅 {date_str}</span></div><a href="{row.get('DownloadLink', '#')}" target="_blank" class="download-link">🔗 Download Sermon</a></div>"""
 
         st.markdown(response_html, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": response_html})

@@ -1,65 +1,70 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
 
 html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Outfit', sans-serif !important;
 }
 
-/* MAIN BACKGROUND: Dark Navy */
+/* MAIN BACKGROUND: Deepest Black/Zinc */
 .stApp {
-    background-color: #0F172A !important;
-    color: #F8FAFC !important;
+    background-color: #09090B !important;
+    color: #FAFAFA !important;
 }
 
-/* SIDEBAR: Slightly Lighter Dark */
+/* SIDEBAR: Darker Glass */
 [data-testid="stSidebar"] {
-    background-color: #1E293B !important;
-    border-right: 1px solid #334155;
+    background-color: #18181B !important; /* Zinc 900 */
+    border-right: 1px solid #27272A;
 }
-[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-    color: #60A5FA !important; /* Lighter Blue */
-}
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-    color: #94A3B8 !important;
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
+    background: linear-gradient(90deg, #A78BFA, #3B82F6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 /* CHAT BUBBLES */
 [data-testid="stChatMessage"] {
-    background-color: #1E293B; /* Dark Card Background */
-    border: 1px solid #334155;
-    color: #F8FAFC !important;
+    background-color: #18181B;
+    border: 1px solid #27272A;
+    border-radius: 16px;
+    color: #FAFAFA !important;
 }
-/* User Bubble: Blue Gradient */
+/* User Bubble: Vibrant Gradient */
 [data-testid="stChatMessage"][data-testid*="user"] {
-    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); /* Indigo to Purple */
     border: none;
+    color: white !important;
 }
 
 /* INPUT BOX */
 .stChatInput textarea {
-    background-color: #1E293B !important;
-    color: #F8FAFC !important;
-    border: 1px solid #334155 !important;
+    background-color: #18181B !important;
+    color: #FAFAFA !important;
+    border: 1px solid #3F3F46 !important;
+    border-radius: 24px !important;
 }
 
-/* SERMON CARDS (Modern Dark) */
+/* MODERN SERMON CARD (Glassmorphism + Glow) */
 .sermon-card {
-    background-color: #1E293B;
-    border-radius: 12px;
+    background: #18181B;
+    border: 1px solid #27272A;
+    border-radius: 16px;
     padding: 1.25rem;
     margin: 1rem 0;
-    border: 1px solid #334155;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 .sermon-card:hover {
-    transform: translateY(-2px);
-    border-color: #3B82F6;
+    border-color: #6366f1;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3);
 }
 .sermon-title {
     color: #F8FAFC;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
 }
 .sermon-details {
     display: flex;
@@ -68,61 +73,63 @@ html, body, [class*="css"] {
     margin-bottom: 1rem;
 }
 .sermon-details span {
-    background-color: #0F172A;
-    color: #94A3B8;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    border: 1px solid #334155;
+    background-color: #27272A;
+    color: #A1A1AA;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 .download-link {
     display: block;
     text-align: center;
-    background-color: #3B82F6; /* Bright Blue */
-    color: #FFFFFF !important;
-    padding: 0.6rem;
-    border-radius: 8px;
+    background: linear-gradient(90deg, #3B82F6 0%, #6366F1 100%);
+    color: white !important;
+    padding: 0.75rem;
+    border-radius: 12px;
     text-decoration: none;
     font-weight: 600;
+    letter-spacing: 0.5px;
     margin-top: 0.5rem;
+    transition: opacity 0.2s;
 }
 .download-link:hover {
-    background-color: #2563EB;
+    opacity: 0.9;
 }
 
 /* HEADERS & DIVIDERS */
 .result-header {
-    color: #60A5FA;
-    font-size: 1rem;
+    color: #A78BFA; /* Soft Purple */
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     font-weight: 700;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    border-bottom: 2px solid #334155;
-    padding-bottom: 0.25rem;
-    display: inline-block;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #27272A;
+    padding-bottom: 0.5rem;
 }
 .ai-caption {
-    background-color: #1E293B;
-    border-left: 4px solid #F59E0B; /* Amber Accent */
-    color: #CBD5E1;
-    padding: 10px 15px;
-    border-radius: 4px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: #E2E8F0;
+    padding: 12px 16px;
+    border-radius: 12px;
     font-size: 0.9rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(10px);
 }
 
 /* BUTTONS */
 button[kind="primary"] {
-    background: #3B82F6 !important;
-    color: white !important;
+    background: white !important;
+    color: black !important;
+    font-weight: 700 !important;
+    border-radius: 24px !important;
     border: none !important;
 }
 button[kind="secondary"] {
-    background: transparent !important;
-    border: 1px solid #475569 !important;
-    color: #94A3B8 !important;
-}
-button[kind="secondary"]:hover {
-    border-color: #64748B !important;
-    color: #F8FAFC !important;
+    border: 1px solid #3F3F46 !important;
+    color: #A1A1AA !important;
+    border-radius: 24px !important;
 }
