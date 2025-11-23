@@ -1,3 +1,6 @@
+import json
+import datetime
+from datetime import timedelta
 import streamlit as st
 import pandas as pd
 from google.oauth2.service_account import Credentials
@@ -67,63 +70,123 @@ def load_data():
         st.error(f"⚠️ Connection Error: {e}")
         return pd.DataFrame()
 
-# --- 2. The Brain (Gemini) ---
+# --- 2. The Brain (Gemini - Advanced) ---
 def extract_search_terms(user_query):
     try:
-        # Debug: Check if key exists
         if not GEMINI_API_KEY:
-            st.error("⚠️ Error: Gemini API Key is missing in Secrets.")
-            return user_query
+            # Fallback: Just return the query as a keyword, no date filters
+            return {"keywords": user_query, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash') # Using the requested 2.5 model
+
+        # We must tell AI what today is so it can calculate "yesterday" or "last week"
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
 
         prompt = f"""
-        You are a theological assistant.
-        Convert this user query into 3-5 comma-separated keywords (Themes, Topics, Bible Characters).
+        System: You are a smart search parser for a church database. Today is {today_str}.
+
+        Task: Analyze the user's query and extract:
+        1. Keywords (Themes, Topics, Scripture, Preacher).
+        2. Date Range (Start and End dates in YYYY-MM-DD format).
+        3. Limit (How many results to show. Default to 10).
+        4. Sort Order ("newest" if they ask for latest/recent, otherwise "relevance").
+
+        Rules:
+        - If user says "2025", start=2025-01-01, end=2025-12-31.
+        - If user says "April 2022", start=2022-04-01, end=2022-04-30.
+        - If user says "Yesterday", calculate the date based on today ({today_str}).
+        - If user says "Latest message", set sort="newest" and limit=1.
+        - Return ONLY raw JSON. No markdown formatting.
+
         User Query: "{user_query}"
-        Keywords:
+
+        Output JSON format:
+        {{
+            "keywords": "string",
+            "start_date": "YYYY-MM-DD" or null,
+            "end_date": "YYYY-MM-DD" or null,
+            "limit": integer,
+            "sort": "newest" or "relevance"
+        }}
         """
         response = model.generate_content(prompt)
-        return response.text.strip()
+
+        # Clean up response (sometimes AI adds ```json ... ```)
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_text)
+
     except Exception as e:
-        # SHOW THE ERROR ON SCREEN
-        st.error(f"Brain Error: {e}")
-        return user_query
+        # Fallback if AI fails
+        print(f"AI Error: {e}")
+        return {"keywords": user_query, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
-# --- 3. Search Engine ---
-def search_sermons(query, expanded_keywords, df):
-    if df.empty: return pd.DataFrame(), []
+# --- 3. Search Engine (Advanced) ---
+def search_sermons(search_params, df):
+    if df.empty: return pd.DataFrame()
 
-    full_search_text = f"{query}, {expanded_keywords}"
-    topics = full_search_text.replace(" and ", ",").split(",")
-    topics = [t.strip() for t in topics if t.strip()]
+    # 1. Apply Date Filter FIRST (if dates exist)
+    # This makes the search faster and accurate
+    if search_params.get("start_date"):
+        try:
+            start_dt = pd.to_datetime(search_params["start_date"])
+            df = df[df['Date'] >= start_dt]
+        except: pass # Ignore invalid dates
 
-    df['match_score'] = 0
-    df['matches_found'] = 0
+    if search_params.get("end_date"):
+        try:
+            end_dt = pd.to_datetime(search_params["end_date"])
+            # Add one day to include the end date fully if needed, or just compare
+            df = df[df['Date'] <= end_dt]
+        except: pass
 
-    for index, row in df.iterrows():
-        total_score = 0
-        matches = 0
-        title = str(row.get('Title', ''))
-        preacher = str(row.get('Preacher', ''))
-        row_text = f"{title} {preacher}".lower()
+    # 2. Keyword Search
+    # If there are keywords, we Fuzzy Match.
+    # If keywords are empty (e.g. user just said "Messages from 2025"), we skip scoring and just return the dated rows.
+    query_text = search_params.get("keywords", "")
 
-        for topic in topics:
-            score = fuzz.partial_ratio(topic.lower(), row_text)
-            if score > 75:
-                total_score += score
-                matches += 1
+    if query_text and query_text.lower() != "none":
+        topics = query_text.replace(" and ", ",").split(",")
+        topics = [t.strip() for t in topics if t.strip()]
 
-        df.at[index, 'match_score'] = total_score
-        df.at[index, 'matches_found'] = matches
+        df = df.copy() # Avoid SettingWithCopy warnings
+        df['match_score'] = 0
+        df['matches_found'] = 0
 
-    results = df[df['matches_found'] > 0].copy()
+        for index, row in df.iterrows():
+            total_score = 0
+            matches = 0
+            title = str(row.get('Title', ''))
+            preacher = str(row.get('Preacher', ''))
+            row_text = f"{title} {preacher}".lower()
 
+            for topic in topics:
+                score = fuzz.partial_ratio(topic.lower(), row_text)
+                if score > 75:
+                    total_score += score
+                    matches += 1
+
+            df.at[index, 'match_score'] = total_score
+            df.at[index, 'matches_found'] = matches
+
+        # Filter: Keep matches
+        results = df[df['matches_found'] > 0].copy()
+    else:
+        # No keywords provided, just return the date-filtered list
+        results = df.copy()
+        results['matches_found'] = 1 # Dummy value for sorting
+        results['match_score'] = 0
+
+    # 3. Sorting
     if not results.empty:
-        results = results.sort_values(by=['matches_found', 'match_score', 'Date'], ascending=[False, False, False])
+        sort_order = search_params.get("sort", "relevance")
+        if sort_order == "newest":
+            results = results.sort_values(by=['Date'], ascending=[False])
+        else:
+            # Default: Match Strength then Date
+            results = results.sort_values(by=['matches_found', 'match_score', 'Date'], ascending=[False, False, False])
 
-    return results, topics
+    return results
 
 # --- 4. Main App Loop ---
 if "messages" not in st.session_state:
@@ -202,28 +265,42 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
 
             else:
                 # NEW SEARCH
-                with st.spinner("Thinking & Searching..."):
-                    ai_keywords = extract_search_terms(prompt)
-                    results, _ = search_sermons(prompt, ai_keywords, df)
+                with st.spinner("Analyzing request..."):
+                    # 1. Get structured params from Brain
+                    search_params = extract_search_terms(prompt)
 
+                    # 2. Search with filters
+                    results = search_sermons(search_params, df)
+
+                # 3. Store in memory
                 st.session_state.search_memory["results"] = results
-                st.session_state.search_memory["current_index"] = 0 # Reset
+                st.session_state.search_memory["current_index"] = 0
 
-                # Debug info
-                if expanded_msg := ai_keywords if ai_keywords != prompt else None:
-                     st.caption(f"🤖 *AI Themes:* {expanded_msg}")
+                # Debug Info (Optional - you can hide this later)
+                if search_params.get("start_date") or search_params.get("limit") != 10:
+                     st.caption(f"🤖 *Filter:* Date={search_params.get('start_date')} to {search_params.get('end_date')} | Limit={search_params.get('limit')}")
 
                 if results.empty:
-                    response_text = f"I couldn't find sermons for '{prompt}'. Try simpler keywords."
+                    response_text = f"I couldn't find sermons matching that criteria."
                     batch = pd.DataFrame()
                 else:
-                    response_text = f"Found {len(results)} sermons. Top results:"
-                    # Grab first 10
-                    batch = results.iloc[0:10]
-                    st.session_state.search_memory["current_index"] = 10
+                    count = len(results)
+                    response_text = f"Found {count} sermons. Here are the results:"
+
+                    # 4. Apply the User's Limit (e.g., "I need 4 sermons")
+                    user_limit = search_params.get("limit", 10)
+
+                    # If user asked for specific number, use that. Otherwise default to 10 for batching.
+                    batch_size = user_limit
+
+                    batch = results.iloc[0:batch_size]
+
+                    # Important: Update the index so the "Next" button works correctly
+                    st.session_state.search_memory["current_index"] = batch_size
 
             # Process the batch (if any)
             if not batch.empty:
+                # ... (Keep existing display loop code here) ...
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
@@ -234,4 +311,4 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
 
         st.markdown(response_text)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
-        st.rerun() # Force refresh to show the "Next" button if applicable
+        st.rerun()
