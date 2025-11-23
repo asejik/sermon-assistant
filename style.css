@@ -1,192 +1,101 @@
 /* style.css */
-
-/* Import Modern Font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Force Font Family */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
-    color: #1E293B; /* Dark Slate Text */
 }
 
-/* Main Background */
+/* MAIN CONTAINER - Force Text Color */
 .stApp {
     background-color: #F8FAFC;
+    color: #1E293B !important;
 }
 
-/* Titles & Headers */
+/* HEADERS */
+h1, h2, h3, h4, h5, h6 {
+    color: #1E293B !important;
+    font-weight: 700 !important;
+}
 h1 {
-    color: #3B82F6; /* Primary Blue */
-    font-weight: 800;
-    text-align: center;
+    color: #3B82F6 !important; /* Primary Blue for Main Title */
     padding-bottom: 1rem;
 }
-h2, h3, h4 {
-    color: #1E293B;
-    font-weight: 700;
-}
 
-/* Sidebar Styling */
+/* SIDEBAR */
 [data-testid="stSidebar"] {
-    background-color: #FFFFFF;
+    background-color: #FFFFFF !important;
     border-right: 1px solid #E2E8F0;
 }
-[data-testid="stSidebar"] h2 {
-    color: #3B82F6;
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #3B82F6 !important;
+}
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span {
+    color: #64748B !important; /* Muted text for sidebar descriptions */
 }
 
-/* Custom Buttons */
-.stButton > button {
-    border-radius: 12px;
-    font-weight: 600;
-    border: none;
-    transition: all 0.3s ease;
-}
-/* Primary Action Button */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-    color: white;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
-}
-.stButton > button[kind="primary"]:hover {
-    box-shadow: 0 8px 10px -2px rgba(59, 130, 246, 0.5);
-    transform: translateY(-2px);
-}
-/* Secondary Button (Clear Chat) */
-.stButton > button[kind="secondary"] {
-    background-color: #F1F5F9;
-    color: #64748B;
-}
-.stButton > button[kind="secondary"]:hover {
-    background-color: #E2E8F0;
-    color: #1E293B;
-}
-
-/* Chat Input */
-.stChatInput > div {
-    border-radius: 24px;
-    border: 2px solid #E2E8F0;
-    background-color: #FFFFFF;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    transition: border-color 0.3s;
-}
-.stChatInput > div:focus-within {
-    border-color: #3B82F6;
-}
-
-/* Chat Messages */
+/* CHAT MESSAGES */
 [data-testid="stChatMessage"] {
-    padding: 1.25rem;
-    border-radius: 20px;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    background-color: #FFFFFF;
     border: 1px solid #E2E8F0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    color: #1E293B !important;
 }
-/* User Message */
+/* User Message Background */
 [data-testid="stChatMessage"][data-testid*="user"] {
     background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-    color: #FFFFFF;
-    border: none;
-    border-bottom-right-radius: 4px;
+    color: #FFFFFF !important; /* Force White text on Blue Bubble */
 }
-/* Assistant Message */
-[data-testid="stChatMessage"][data-testid*="assistant"] {
-    background-color: #FFFFFF;
-    border-bottom-left-radius: 4px;
+/* Fix Text inside User Bubble */
+[data-testid="stChatMessage"][data-testid*="user"] p {
+    color: #FFFFFF !important;
 }
 
-/* SERMON CARD STYLING */
+/* INPUT BOX */
+.stChatInput textarea {
+    color: #1E293B !important;
+    background-color: #FFFFFF !important;
+}
+
+/* SERMON CARDS (HTML Content) */
 .sermon-card {
     background-color: #FFFFFF;
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 0.75rem 0;
     border: 1px solid #E2E8F0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-.sermon-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 6px;
-    height: 100%;
-    background: linear-gradient(to bottom, #3B82F6, #2563EB);
-}
-.sermon-card:hover {
-    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
-    transform: translateY(-3px);
-    border-color: #BFDBFE;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    color: #1E293B !important;
 }
 .sermon-title {
-    font-size: 1.15rem;
+    color: #1E293B !important;
     font-weight: 700;
-    color: #1E293B;
-    margin-bottom: 0.75rem;
-    line-height: 1.4;
-}
-.sermon-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    font-size: 0.9rem;
-    color: #64748B; /* Muted Text */
-    margin-bottom: 1.25rem;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
 }
 .sermon-details span {
-    display: flex;
-    align-items: center;
-    background-color: #F8FAFC;
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    font-weight: 500;
+    color: #64748B !important;
+    background-color: #F1F5F9;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
 }
 .download-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #EFF6FF;
-    color: #2563EB;
-    border-radius: 12px;
-    text-decoration: none;
+    color: #3B82F6 !important;
     font-weight: 600;
-    transition: all 0.3s ease;
-}
-.download-link:hover {
-    background-color: #DBEAFE;
-    color: #1D4ED8;
-    text-decoration: none;
 }
 
-/* Chat Section Headers */
-.chat-header {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #3B82F6;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
+/* BUTTONS */
+button[kind="primary"] {
+    background-color: #3B82F6 !important;
+    color: #FFFFFF !important;
+    border: none !important;
 }
-
-/* AI Theme Caption */
-.ai-caption {
-    font-size: 0.9rem;
-    color: #64748B;
-    background-color: #F1F5F9;
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-    display: inline-block;
-    border: 1px solid #E2E8F0;
-}
-
-/* Spinner */
-[data-testid="stSpinner"] {
-    border-color: #3B82F6;
+button[kind="secondary"] {
+    background-color: #F1F5F9 !important;
+    color: #64748B !important;
+    border: 1px solid #E2E8F0 !important;
 }
