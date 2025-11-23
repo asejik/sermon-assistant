@@ -1,25 +1,22 @@
-import json
-import datetime
-from datetime import timedelta
 import streamlit as st
 import pandas as pd
 from google.oauth2.service_account import Credentials
 import gspread
 from thefuzz import process, fuzz
 import google.generativeai as genai
+import json
+import datetime
+from datetime import timedelta
 
 # --- Configuration ---
-# 1. Setup Page Config First
 st.set_page_config(page_title="Sermon Assistant", layout="wide")
 
-# 2. Securely Load Keys (Cloud or Local)
-# Gemini Key
+# Securely Load Keys
 if "gemini" in st.secrets:
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 else:
-    GEMINI_API_KEY = "" # Fallback to prevent crash, will show error later if needed
+    GEMINI_API_KEY = ""
 
-# Sheet ID
 if "sheets" in st.secrets:
     SHEET_ID = st.secrets["sheets"]["sheet_id"]
 else:
@@ -29,10 +26,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapi
 
 # --- UI Header ---
 st.title("Citizens of Light Sermon Assistant")
-
 with st.sidebar:
     st.header("About")
-    st.markdown("This AI helps you find Citizens of Light sermons based on **Themes**, **Stories**, or **Scriptures**.")
+    st.markdown("This AI helps you find Citizens of Light sermons based on **Themes**, **Stories**, or **Preachers**.")
     st.markdown("---")
     if st.button("Clear Chat History"):
         st.session_state.messages = []
@@ -41,16 +37,14 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Powered by Gemini 2.5 & Google Sheets")
 
-# --- 1. Data Loading Function ---
+# --- 1. Data Loading ---
 @st.cache_data(ttl=600)
 def load_data():
     try:
-        # Check if we are in the cloud (using secrets)
         if "gcp_service_account" in st.secrets:
             service_account_info = st.secrets["gcp_service_account"]
             creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         else:
-            # Load from File (Local Mode fallback)
             creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
 
         client = gspread.authorize(creds)
@@ -70,7 +64,7 @@ def load_data():
         st.error(f"⚠️ Connection Error: {e}")
         return pd.DataFrame()
 
-# --- 2. The Brain (Gemini - Advanced) ---
+# --- 2. The Brain (Gemini 2.5) ---
 def extract_search_terms(user_query):
     try:
         if not GEMINI_API_KEY:
@@ -85,15 +79,11 @@ def extract_search_terms(user_query):
         System: You are a smart search parser for a church database. Today is {today_str}.
 
         Task: Analyze the user's query and extract:
-        1. Keywords (The core topic, e.g. "Love", "Faith". Exclude the preacher's name from this).
-        2. Preacher (The name of the person preaching, e.g. "Temitope", "Israel". Ignore titles like Pastor/Apostle if possible).
-        3. Date Range (Start and End dates).
-        4. Limit (Number of results).
-        5. Sort Order.
-
-        Rules:
-        - If query is "Messages by Pastor Israel on Faith", Keywords="Faith", Preacher="Israel".
-        - If query is "Sermons by Apostle Areo", Preacher="Areo".
+        1. Keywords (The topic/theme. Remove Preacher names from this).
+        2. Preacher (Name only. Ignore titles like Pastor, Apostle).
+        3. Date Range (YYYY-MM-DD).
+        4. Limit (Default 10).
+        5. Sort ("newest" or "relevance").
 
         User Query: "{user_query}"
 
@@ -101,25 +91,55 @@ def extract_search_terms(user_query):
         {{
             "keywords": "string",
             "preacher": "string" or null,
-            "start_date": "YYYY-MM-DD" or null,
-            "end_date": "YYYY-MM-DD" or null,
+            "start_date": "string" or null,
+            "end_date": "string" or null,
             "limit": integer,
-            "sort": "newest" or "relevance"
+            "sort": "string"
         }}
         """
         response = model.generate_content(prompt)
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
-
     except Exception as e:
-        print(f"AI Error: {e}")
+        # Fallback
         return {"keywords": user_query, "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
-# --- 3. Search Engine (Advanced) ---
+# --- HELPER: Preacher Name Normalizer ---
+def check_name_match(query_name, db_name):
+    """
+    Smart Logic:
+    1. Removes titles (Pastor, Apostle, etc).
+    2. If query is 1 word ("Seun"), use loose matching (allows "Seun Akinloye").
+    3. If query is 2+ words ("Damilola Faleye"), use strict matching (blocks "Ibukun Faleye").
+    """
+    if not query_name or not db_name: return False
+
+    # List of titles to strip out
+    titles = ["pastor", "apostle", "rev", "reverend", "prophet", "evangelist", "min", "minister", "dr", "mr", "mrs", "pst"]
+
+    q_clean = query_name.lower()
+    t_clean = str(db_name).lower()
+
+    # Remove titles
+    for title in titles:
+        q_clean = q_clean.replace(f"{title} ", "").strip()
+        t_clean = t_clean.replace(f"{title} ", "").strip()
+
+    # Match Logic
+    if " " not in q_clean:
+        # One word query (e.g. "Seun") -> Use Partial Ratio (High Threshold)
+        # 85 prevents "Seun" matching "Segun" but allows "Seun" in "Seun Akinloye"
+        return fuzz.partial_ratio(q_clean, t_clean) >= 85
+    else:
+        # Multi word query (e.g. "Damilola Faleye") -> Use Token Sort (Very High Threshold)
+        # This prevents "Damilola Faleye" matching "Ibukun Faleye" just because they share "Faleye"
+        return fuzz.token_sort_ratio(q_clean, t_clean) >= 70
+
+# --- 3. The Search Engine ---
 def search_sermons(search_params, df):
     if df.empty: return pd.DataFrame()
 
-    # 1. Apply Date Filter
+    # 1. Date Filter
     if search_params.get("start_date"):
         try:
             start_dt = pd.to_datetime(search_params["start_date"])
@@ -132,23 +152,21 @@ def search_sermons(search_params, df):
             df = df[df['Date'] <= end_dt]
         except: pass
 
-    # 2. Apply Preacher Filter (NEW)
+    # 2. Smart Preacher Filter
     preacher_query = search_params.get("preacher")
     if preacher_query and preacher_query.lower() != "none":
-        # We filter the dataframe to only keep rows where the Preacher name matches loosely
-        # Threshold is lower (60) to handle "Tope" vs "Temitope" or "Israel" vs "Pastor Israel"
-        df = df[df['Preacher'].apply(lambda x: fuzz.partial_ratio(preacher_query.lower(), str(x).lower()) > 60)]
+        # Apply the custom check_name_match function
+        df = df[df['Preacher'].apply(lambda x: check_name_match(preacher_query, x))]
 
     # 3. Keyword Search
     query_text = search_params.get("keywords", "")
 
-    # If we filtered by preacher/date and keywords are empty, return the filtered list
-    if not query_text or query_text.lower() == "none":
+    # If no keywords (only Preacher/Date), return all matches
+    if not query_text or query_text.lower() == "none" or query_text == "":
         results = df.copy()
         results['matches_found'] = 1
         results['match_score'] = 100
     else:
-        # Standard Keyword Fuzzy Match
         topics = query_text.replace(" and ", ",").split(",")
         topics = [t.strip() for t in topics if t.strip()]
 
@@ -160,8 +178,6 @@ def search_sermons(search_params, df):
             total_score = 0
             matches = 0
             title = str(row.get('Title', ''))
-            # We don't need to search Preacher column for topics anymore, just Title
-            # This makes topic search cleaner
             row_text = f"{title}".lower()
 
             for topic in topics:
@@ -193,48 +209,42 @@ if "search_memory" not in st.session_state:
 
 df = load_data()
 
-# 1. Display Chat History
+# Display History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 2. Check for "Next" Button Availability
-# We check if we have results and if we haven't shown them all yet
+# --- SMART BUTTON LOGIC ---
 mem_results = st.session_state.search_memory["results"]
 mem_index = st.session_state.search_memory["current_index"]
 
-# If there are results, and the current index is less than the total count...
-if not mem_results.empty and mem_index < len(mem_results):
-    remaining = len(mem_results) - mem_index
-    # Create a centered button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button(f"⬇️ Load Next 10 Results ({remaining} remaining)", type="primary", use_container_width=True):
-            # --- HANDLE BUTTON CLICK ---
-            # 1. Add a "user" message so the flow looks natural
-            st.session_state.messages.append({"role": "user", "content": "Show more results"})
+# FIX: Added strict type checks to prevent TypeError
+if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstance(mem_index, int):
+    if mem_index < len(mem_results):
+        remaining = len(mem_results) - mem_index
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button(f"⬇️ Load Next 10 Results ({remaining} remaining)", type="primary", use_container_width=True):
+                st.session_state.messages.append({"role": "user", "content": "Show more results"})
 
-            # 2. Generate the batch
-            batch = mem_results.iloc[mem_index : mem_index + 10]
-            response_text = "Here are the next set of results:"
+                # Fetch Batch
+                batch = mem_results.iloc[mem_index : mem_index + 10]
+                response_text = "Here are the next set of results:"
 
-            for _, row in batch.iterrows():
-                date_val = row.get('Date', pd.NaT)
-                date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
-                response_text += f"\n\n**Message Title:** {row.get('Title', '')}\n"
-                response_text += f"- **Preacher:** {row.get('Preacher', '')}\n"
-                response_text += f"- **Date:** {date_str}\n"
-                response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
+                for _, row in batch.iterrows():
+                    date_val = row.get('Date', pd.NaT)
+                    date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
+                    response_text += f"\n\n**Message Title:** {row.get('Title', '')}\n"
+                    response_text += f"- **Preacher:** {row.get('Preacher', '')}\n"
+                    response_text += f"- **Date:** {date_str}\n"
+                    response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
 
-            # 3. Update Memory
-            st.session_state.search_memory["current_index"] += 10
+                st.session_state.search_memory["current_index"] += 10
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                st.rerun()
 
-            # 4. Append to history and Rerun
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
-            st.rerun()
-
-# 3. User Text Input
-if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')..."):
+# --- INPUT LOGIC ---
+if prompt := st.chat_input("Search (e.g. 'Messages by Pastor Seun on Faith')..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -243,64 +253,33 @@ if prompt := st.chat_input("Search (e.g. 'The story of Jonah' or 'John 3:16')...
         if df.empty:
             response_text = "⚠️ Database not connected. Check logs."
         else:
-            # We don't need "Next" logic here anymore since the button handles it
-            # But we keep it just in case they type it manually
-            is_continuation = prompt.lower() in ["next", "more", "continue"]
+            # AI SEARCH
+            with st.spinner("Thinking & Searching..."):
+                search_params = extract_search_terms(prompt)
+                results = search_sermons(search_params, df)
 
-            if is_continuation and not st.session_state.search_memory["results"].empty:
-                # Manual typed "next" logic
-                results = st.session_state.search_memory["results"]
-                start_index = st.session_state.search_memory["current_index"]
+            st.session_state.search_memory["results"] = results
+            st.session_state.search_memory["current_index"] = 0
 
-                if start_index >= len(results):
-                     response_text = "There are no more results for this search."
-                     batch = pd.DataFrame() # Empty
-                else:
-                    response_text = "Here are more results:"
-                    batch = results.iloc[start_index : start_index + 10]
-                    st.session_state.search_memory["current_index"] += 10
+            # Debug (Shows what filters were applied)
+            debug_msg = []
+            if search_params.get("preacher"): debug_msg.append(f"Preacher: {search_params['preacher']}")
+            if search_params.get("limit") != 10: debug_msg.append(f"Limit: {search_params['limit']}")
+            if debug_msg: st.caption(f"🤖 *Filter:* {' | '.join(debug_msg)}")
 
+            if results.empty:
+                response_text = f"I couldn't find sermons matching that request."
             else:
-                # NEW SEARCH
-                with st.spinner("Analyzing request..."):
-                    # 1. Get structured params from Brain
-                    search_params = extract_search_terms(prompt)
+                count = len(results)
+                user_limit = search_params.get("limit", 10)
 
-                    # 2. Search with filters
-                    results = search_sermons(search_params, df)
+                response_text = f"Found {count} sermons. Here are the results:"
 
-                # 3. Store in memory
-                st.session_state.search_memory["results"] = results
-                st.session_state.search_memory["current_index"] = 0
+                # Set initial batch
+                batch_size = user_limit
+                batch = results.iloc[0:batch_size]
+                st.session_state.search_memory["current_index"] = batch_size
 
-                # Debug Info (Optional - you can hide this later)
-                if search_params.get("start_date") or search_params.get("limit") != 10:
-                     st.caption(f"🤖 *Filter:* Date={search_params.get('start_date')} to {search_params.get('end_date')} | Limit={search_params.get('limit')}")
-
-                if search_params.get("preacher") or search_params.get("limit") != 10:
-                     st.caption(f"🤖 *Filter:* Preacher='{search_params.get('preacher')}' | Limit={search_params.get('limit')}")
-
-                if results.empty:
-                    response_text = f"I couldn't find sermons matching that criteria."
-                    batch = pd.DataFrame()
-                else:
-                    count = len(results)
-                    response_text = f"Found {count} sermons. Here are the results:"
-
-                    # 4. Apply the User's Limit (e.g., "I need 4 sermons")
-                    user_limit = search_params.get("limit", 10)
-
-                    # If user asked for specific number, use that. Otherwise default to 10 for batching.
-                    batch_size = user_limit
-
-                    batch = results.iloc[0:batch_size]
-
-                    # Important: Update the index so the "Next" button works correctly
-                    st.session_state.search_memory["current_index"] = batch_size
-
-            # Process the batch (if any)
-            if not batch.empty:
-                # ... (Keep existing display loop code here) ...
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
