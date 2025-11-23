@@ -104,11 +104,11 @@ def extract_search_terms(user_query):
     except Exception as e:
         return {"keywords": user_query, "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
-# --- HELPER: Flexible Name Matcher (Improved) ---
+# --- HELPER: Flexible Name Matcher (Strict for Short Names) ---
 def check_name_match(query_name, db_name):
     if not query_name or not db_name: return False
 
-    # Strip titles to ensure clean comparison
+    # Strip titles
     titles = ["pastor", "apostle", "rev", "reverend", "prophet", "evangelist", "min", "minister", "dr", "mr", "mrs", "pst"]
 
     q_clean = query_name.lower()
@@ -118,24 +118,25 @@ def check_name_match(query_name, db_name):
         q_clean = q_clean.replace(f"{title} ", "").strip()
         t_clean = t_clean.replace(f"{title} ", "").strip()
 
-    # --- NEW LOGIC START ---
+    # --- STRICT LOGIC ---
 
-    # 1. Exact Name Check (Best for "Seun" finding "Seun Akinloye")
-    # We check if the query is a distinct word inside the DB name.
-    # This prevents "Seun" matching "Segun" (because Seun is not a word in Segun).
+    # 1. Exact Word Match (Primary Check)
+    # If "Segun" is a distinct word in "Apostle Segun Obadje", return True immediately.
+    # If "Segun" is NOT in "Pastor Seun Akinloye", this fails (which is good).
     t_words = t_clean.split()
     if q_clean in t_words:
         return True
 
-    # 2. Length-Based Fuzzy Logic
-    # Short names (<= 4 chars) like "Rex", "Dele", "Seun" need STRICT matching (90+)
-    # Long names can be looser (75+) to handle typos like "Damiola"
-    if len(q_clean) <= 4:
-        return fuzz.ratio(q_clean, t_clean) >= 90 or fuzz.partial_ratio(q_clean, t_clean) >= 95
-    else:
-        return fuzz.partial_ratio(q_clean, t_clean) >= 75
+    # 2. Conflict Resolver (Seun vs Segun)
+    # If the names are very similar but short, prevent crossover.
+    if len(q_clean) <= 5:
+        # Require a near-perfect match (95%+) for short names
+        # "Seun" vs "Segun" is ~80%, so this will return False (Correct!)
+        return fuzz.ratio(q_clean, t_clean) >= 95
 
-    # --- NEW LOGIC END ---
+    # 3. Fuzzy Fallback for Longer Names
+    # "Damilola" vs "Pastor Damiola Faleye" (Typo) -> Returns True
+    return fuzz.partial_ratio(q_clean, t_clean) >= 75
 
 # --- 3. The Search Engine (Stop-Words Added) ---
 def search_sermons(search_params, df):
