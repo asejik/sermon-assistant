@@ -1,101 +1,128 @@
-/* style.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Force Font Family */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* MAIN CONTAINER - Force Text Color */
+/* MAIN BACKGROUND: Dark Navy */
 .stApp {
-    background-color: #F8FAFC;
-    color: #1E293B !important;
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
 }
 
-/* HEADERS */
-h1, h2, h3, h4, h5, h6 {
-    color: #1E293B !important;
-    font-weight: 700 !important;
-}
-h1 {
-    color: #3B82F6 !important; /* Primary Blue for Main Title */
-    padding-bottom: 1rem;
-}
-
-/* SIDEBAR */
+/* SIDEBAR: Slightly Lighter Dark */
 [data-testid="stSidebar"] {
-    background-color: #FFFFFF !important;
-    border-right: 1px solid #E2E8F0;
+    background-color: #1E293B !important;
+    border-right: 1px solid #334155;
 }
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    color: #3B82F6 !important;
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    color: #60A5FA !important; /* Lighter Blue */
 }
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span {
-    color: #64748B !important; /* Muted text for sidebar descriptions */
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+    color: #94A3B8 !important;
 }
 
-/* CHAT MESSAGES */
+/* CHAT BUBBLES */
 [data-testid="stChatMessage"] {
-    background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    color: #1E293B !important;
+    background-color: #1E293B; /* Dark Card Background */
+    border: 1px solid #334155;
+    color: #F8FAFC !important;
 }
-/* User Message Background */
+/* User Bubble: Blue Gradient */
 [data-testid="stChatMessage"][data-testid*="user"] {
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-    color: #FFFFFF !important; /* Force White text on Blue Bubble */
-}
-/* Fix Text inside User Bubble */
-[data-testid="stChatMessage"][data-testid*="user"] p {
-    color: #FFFFFF !important;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    border: none;
 }
 
 /* INPUT BOX */
 .stChatInput textarea {
-    color: #1E293B !important;
-    background-color: #FFFFFF !important;
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
+    border: 1px solid #334155 !important;
 }
 
-/* SERMON CARDS (HTML Content) */
+/* SERMON CARDS (Modern Dark) */
 .sermon-card {
-    background-color: #FFFFFF;
+    background-color: #1E293B;
     border-radius: 12px;
     padding: 1.25rem;
-    margin: 0.75rem 0;
-    border: 1px solid #E2E8F0;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    color: #1E293B !important;
+    margin: 1rem 0;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+.sermon-card:hover {
+    transform: translateY(-2px);
+    border-color: #3B82F6;
 }
 .sermon-title {
-    color: #1E293B !important;
-    font-weight: 700;
+    color: #F8FAFC;
     font-size: 1.1rem;
+    font-weight: 700;
     margin-bottom: 0.5rem;
 }
+.sermon-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
 .sermon-details span {
-    color: #64748B !important;
-    background-color: #F1F5F9;
-    padding: 4px 8px;
+    background-color: #0F172A;
+    color: #94A3B8;
+    padding: 4px 10px;
     border-radius: 6px;
     font-size: 0.85rem;
+    border: 1px solid #334155;
 }
 .download-link {
-    color: #3B82F6 !important;
+    display: block;
+    text-align: center;
+    background-color: #3B82F6; /* Bright Blue */
+    color: #FFFFFF !important;
+    padding: 0.6rem;
+    border-radius: 8px;
+    text-decoration: none;
     font-weight: 600;
+    margin-top: 0.5rem;
+}
+.download-link:hover {
+    background-color: #2563EB;
+}
+
+/* HEADERS & DIVIDERS */
+.result-header {
+    color: #60A5FA;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 2px solid #334155;
+    padding-bottom: 0.25rem;
+    display: inline-block;
+}
+.ai-caption {
+    background-color: #1E293B;
+    border-left: 4px solid #F59E0B; /* Amber Accent */
+    color: #CBD5E1;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
 }
 
 /* BUTTONS */
 button[kind="primary"] {
-    background-color: #3B82F6 !important;
-    color: #FFFFFF !important;
+    background: #3B82F6 !important;
+    color: white !important;
     border: none !important;
 }
 button[kind="secondary"] {
-    background-color: #F1F5F9 !important;
-    color: #64748B !important;
-    border: 1px solid #E2E8F0 !important;
+    background: transparent !important;
+    border: 1px solid #475569 !important;
+    color: #94A3B8 !important;
+}
+button[kind="secondary"]:hover {
+    border-color: #64748B !important;
+    color: #F8FAFC !important;
 }

@@ -1,7 +1,6 @@
-# app.py
 import streamlit as st
 import pandas as pd
-import backend # Import our new logic file
+import backend
 
 # --- Page Config ---
 st.set_page_config(page_title="Sermon Assistant", layout="wide", page_icon="🎧")
@@ -11,7 +10,7 @@ def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-local_css("style.css") # Load styling
+local_css("style.css")
 
 # --- UI Header & Sidebar ---
 st.title("Citizens of Light Sermon Assistant")
@@ -33,7 +32,7 @@ if "messages" not in st.session_state:
 if "search_memory" not in st.session_state:
     st.session_state.search_memory = {"last_query": "", "results": pd.DataFrame(), "current_index": 0}
 
-# --- Load Data (From Backend) ---
+# --- Load Data ---
 df = backend.load_data()
 
 # --- Display Chat History ---
@@ -54,8 +53,8 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
                 st.session_state.messages.append({"role": "user", "content": "Show more results"})
                 batch = mem_results.iloc[mem_index : mem_index + 10]
 
-                # Build HTML for next batch
-                response_html = "<br>"
+                # HTML Construction
+                response_html = ""
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
@@ -84,10 +83,9 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
 
     with st.chat_message("assistant"):
         if df.empty:
-            response_html = "⚠️ Database not connected. Check logs."
+            response_html = "<div style='color:red;'>⚠️ Database not connected. Check logs.</div>"
         else:
             with st.spinner("Searching for requested sermon, please wait..."):
-                # Call Backend Functions
                 search_params = backend.extract_search_terms(prompt)
                 results = backend.search_sermons(search_params, df)
 
@@ -99,7 +97,7 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
 
             st.session_state.search_memory["results"] = results
 
-            # AI Caption
+            # AI Caption Construction
             debug_msg = []
             if search_params.get("preacher"): debug_msg.append(f"Preacher: {search_params['preacher']}")
             if search_params.get("keywords"): debug_msg.append(f"Keywords: {search_params['keywords']}")
@@ -122,7 +120,7 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                 else:
                     response_html += f"<p>Found <b>{count}</b> sermons. Here are the results:</p>"
 
-                # Display Batch
+                # Batch Display
                 batch_size = user_limit
                 batch = results.iloc[0:batch_size]
                 st.session_state.search_memory["current_index"] = batch_size
@@ -136,13 +134,14 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                         current_section = match_type
                         if match_type == "Exact":
                             header_text = "Exact Match" if exact_count == 1 else "Exact Matches"
-                            response_html += f"""<div class="chat-header">✅ {header_text}</div>"""
+                            response_html += f"""<div class="result-header">✅ {header_text}</div>"""
                         elif match_type == "Suggested":
-                            response_html += f"""<div class="chat-header">💡 Related / Suggested Results</div>"""
+                            response_html += f"""<div class="result-header">💡 Related / Suggested Results</div>"""
 
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
 
+                    # STRICT HTML STRUCTURE
                     response_html += f"""
                     <div class="sermon-card">
                         <div class="sermon-title">{row.get('Title', '')}</div>
