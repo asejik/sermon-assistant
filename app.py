@@ -7,23 +7,23 @@ import google.generativeai as genai
 import os
 
 # --- Configuration ---
-# Fetch from Secrets
-if "sheets" in st.secrets:
-    SHEET_ID = st.secrets["sheets"]["sheet_id"]
-else:
-    SHEET_ID = "1q4-sO9g_lq9euOE-mN9rDysRjFbWJa_l8uaJ3nq2ffA" # Fallback
-
+# Fetch from Secrets (Cloud) or Environment (Local fallback)
 if "gemini" in st.secrets:
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 else:
-    st.error("Missing Gemini API Key in secrets.toml")
+    # This ensures we don't crash locally, but we NEVER hardcode the key here
     GEMINI_API_KEY = ""
+
+if "sheets" in st.secrets:
+    SHEET_ID = st.secrets["sheets"]["sheet_id"]
+else:
+    SHEET_ID = "1q4-sO9g_lq9euOE-mN9rDysRjFbWJa_l8uaJ3nq2ffA" # This ID is safe to be public
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
 # ⚠️ PASTE YOUR GEMINI API KEY HERE
-GEMINI_API_KEY = "AIzaSyDoxucrsB_VAMCLTWOUW1_Kf1ZkM_NPkvY"
-
+GEMINI_API_KEY = ""
+s
 # --- Setup Page ---
 st.set_page_config(page_title="Sermon Assistant", layout="wide")
 st.title("Citizens of Light Sermon Assistant")
