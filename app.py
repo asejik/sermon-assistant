@@ -102,11 +102,10 @@ def extract_search_terms(user_query):
     except Exception as e:
         return {"keywords": user_query, "synonyms": "", "preacher": None, "start_date": None, "end_date": None, "limit": 10, "sort": "relevance"}
 
-# --- HELPER: Name Matcher (Dual Check) ---
+# --- HELPER: Name Matcher ---
 def check_name_match(query_name, db_name):
     if not query_name or not db_name: return False
 
-    # Aliases map (Check BOTH the alias and the full name)
     aliases = {
         "dami": "damilola",
         "temi": "temitope",
@@ -117,23 +116,15 @@ def check_name_match(query_name, db_name):
     q_raw = query_name.lower().strip()
     t_clean = str(db_name).lower()
 
-    # Strip titles from DB name
     titles = ["pastor", "apostle", "rev", "reverend", "prophet", "evangelist", "min", "minister", "dr", "mr", "mrs", "pst"]
     for title in titles:
         t_clean = t_clean.replace(f"{title} ", "").strip()
 
-    # 1. Check Raw Input (e.g. "Ibk" matches "Pastor Ibk")
-    # This fixes the issue where converting Ibk->Ibukun misses rows actually named "Ibk"
-    if fuzz.partial_ratio(q_raw, t_clean) >= 95:
-        return True
-
-    # 2. Check Expanded Alias (e.g. "Ibk" -> "Ibukun" matches "Pastor Ibukun")
+    if fuzz.partial_ratio(q_raw, t_clean) >= 95: return True
     if q_raw in aliases:
         q_expanded = aliases[q_raw]
-        if fuzz.partial_ratio(q_expanded, t_clean) >= 80:
-            return True
+        if fuzz.partial_ratio(q_expanded, t_clean) >= 80: return True
 
-    # 3. Standard Logic (Segun/Seun check)
     t_words = t_clean.split()
     if q_raw in t_words: return True
 
@@ -185,33 +176,26 @@ def search_sermons(search_params, df):
         matched['match_type'] = match_type_label
         return matched
 
-    # Get Matches
     results_exact = score_rows(filtered_df, primary_keywords, "Exact")
     results_suggested = pd.DataFrame()
 
-    # LOGIC: Only get suggestions if Exact count < 10
     if len(results_exact) < 10 and secondary_keywords:
         results_suggested = score_rows(filtered_df, secondary_keywords, "Suggested")
-        # Remove exacts from suggestions
         if not results_exact.empty:
             results_suggested = results_suggested[~results_suggested.index.isin(results_exact.index)]
 
-    # Fallback (Filter Only)
     if results_exact.empty and results_suggested.empty and (not primary_keywords or primary_keywords.lower() == "none"):
         final_results = filtered_df.copy()
-        final_results['match_type'] = "Exact" # Treat filter-only matches as exact
+        final_results['match_type'] = "Exact"
         final_results['match_score'] = 100
     else:
-        # Combine
         final_results = pd.concat([results_exact, results_suggested])
 
-    # Sorting
     if not final_results.empty:
         sort_order = search_params.get("sort", "relevance")
         if sort_order == "newest":
             final_results = final_results.sort_values(by=['Date'], ascending=[False])
         else:
-            # Sort: Exact (1) -> Suggested (2)
             type_map = {"Exact": 1, "Suggested": 2}
             final_results['type_rank'] = final_results['match_type'].map(type_map)
             final_results = final_results.sort_values(by=['type_rank', 'match_score', 'Date'], ascending=[True, False, False])
@@ -236,8 +220,6 @@ mem_index = st.session_state.search_memory["current_index"]
 
 if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstance(mem_index, int):
     if mem_index < len(mem_results):
-        # Only show button if total suggestions don't exceed cap (e.g. 20)
-        # But for 'Next' logic, we usually let them scroll.
         remaining = len(mem_results) - mem_index
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -248,15 +230,17 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
-                    response_text += f"\n\n**Message Title:** {row.get('Title', '')}\n"
-                    response_text += f"- **Preacher:** {row.get('Preacher', '')}\n"
-                    response_text += f"- **Date:** {date_str}\n"
-                    response_text += f"- **Link:** [Download]({row.get('DownloadLink', '#')})"
+                    response_text += "\n\n---"
+                    response_text += f"\n\n**{row.get('Title', '')}**\n"
+                    response_text += f"- 👤 {row.get('Preacher', '')}\n"
+                    response_text += f"- 📅 {date_str} | 🔗 [Download]({row.get('DownloadLink', '#')})"
                 st.session_state.search_memory["current_index"] += 10
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.rerun()
 
-if prompt := st.chat_input("Search..."):
+# Input Logic
+# UPDATED: New Placeholder Text
+if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or date..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -265,24 +249,27 @@ if prompt := st.chat_input("Search..."):
         if df.empty:
             response_text = "⚠️ Database not connected. Check logs."
         else:
-            with st.spinner("Thinking & Searching..."):
+            # UPDATED: New Loading Text
+            with st.spinner("Searching for requested sermon, please wait..."):
                 search_params = extract_search_terms(prompt)
                 results = search_sermons(search_params, df)
 
-            # Limit total suggestions (Cap at 20 if mixed)
+            # Limit Suggestions
             if len(results) > 20 and "Suggested" in results['match_type'].values:
-                # Keep all exacts, crop suggestions
                 exacts = results[results['match_type'] == "Exact"]
                 suggested = results[results['match_type'] == "Suggested"].head(20 - len(exacts))
                 results = pd.concat([exacts, suggested])
 
             st.session_state.search_memory["results"] = results
 
-            # Debug
+            # UPDATED: Restored AI Themes Display
             debug_msg = []
             if search_params.get("preacher"): debug_msg.append(f"Preacher: {search_params['preacher']}")
             if search_params.get("keywords"): debug_msg.append(f"Keywords: {search_params['keywords']}")
-            if debug_msg: st.caption(f"🤖 *Filter:* {' | '.join(debug_msg)}")
+            if search_params.get("synonyms"): debug_msg.append(f"Related: {search_params['synonyms']}")
+
+            # Label changed back to "AI Detected Themes"
+            if debug_msg: st.caption(f"🤖 *AI Detected Themes:* {' | '.join(debug_msg)}")
 
             if results.empty:
                 response_text = f"I couldn't find any exact matches for '{prompt}', and no related topics were found."
@@ -299,7 +286,7 @@ if prompt := st.chat_input("Search..."):
                 else:
                     response_text = f"Found {count} sermons. Here are the results:"
 
-                # Display Logic (Batched)
+                # Display Logic
                 batch_size = user_limit
                 batch = results.iloc[0:batch_size]
                 st.session_state.search_memory["current_index"] = batch_size
@@ -309,17 +296,21 @@ if prompt := st.chat_input("Search..."):
                 for _, row in batch.iterrows():
                     match_type = row.get('match_type', 'Exact')
 
-                    # Section Headers Logic
+                    # UPDATED: Smaller Headers & Singular/Plural Logic
                     if match_type != current_section:
                         current_section = match_type
                         if match_type == "Exact":
-                            response_text += "\n\n### ✅ Exact Matches"
+                            # Singular vs Plural check
+                            header_text = "Exact Match" if exact_count == 1 else "Exact Matches"
+                            response_text += f"\n\n#### ✅ {header_text}"
                         elif match_type == "Suggested":
-                            response_text += "\n\n### 💡 Related / Suggested Results"
+                            response_text += "\n\n#### 💡 Related / Suggested Results"
 
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
 
+                    # UPDATED: Added Divider
+                    response_text += "\n\n---"
                     response_text += f"\n\n**{row.get('Title', '')}**\n"
                     response_text += f"- 👤 {row.get('Preacher', '')}\n"
                     response_text += f"- 📅 {date_str} | 🔗 [Download]({row.get('DownloadLink', '#')})"
