@@ -13,11 +13,23 @@ def local_css(file_name):
 local_css("style.css")
 
 # --- UI Header & Sidebar ---
-st.title("Citizens of Light Sermon Assistant")
+st.title("Sermon Assistant for Citizens of Light Church")
 
 with st.sidebar:
     st.header("About")
-    st.markdown("This AI helps you find Citizens of Light sermons based on **Themes**, **Stories**, or **Preachers**.")
+    st.markdown("""
+    I'm your personal Sermon Assistant. I can help you find sermons from CLC.
+    You can ask me questions in plain English!
+
+    **Here are a few examples:**
+    - "I need messages on health"
+    - "Give me 5 sermons on love by Pastor Temitope Areo"
+    - "Show me sermons on grace by Apostle Muyiwa Areo"
+    - "I need messages from last week"
+    - "I need the message preached on January 22, 2017"
+
+    Send me a request and I’ll fetch it for you!
+    """)
     st.markdown("---")
     if st.button("Clear Chat History", type="secondary"):
         st.session_state.messages = []

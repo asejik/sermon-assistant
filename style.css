@@ -4,46 +4,63 @@ html, body, [class*="css"] {
     font-family: 'Outfit', sans-serif !important;
 }
 
-/* MAIN BACKGROUND: Deepest Black/Zinc */
+/* MAIN BACKGROUND */
 .stApp {
     background-color: #09090B !important;
     color: #FAFAFA !important;
 }
 
-/* SIDEBAR: Darker Glass */
-[data-testid="stSidebar"] {
-    background-color: #18181B !important; /* Zinc 900 */
-    border-right: 1px solid #27272A;
-}
-[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
+/* 1. TITLE UPDATE: Smaller Size */
+h1 {
     background: linear-gradient(90deg, #A78BFA, #3B82F6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    font-weight: 800;
+    text-align: center;
+    padding-bottom: 1rem;
+    font-size: 2rem !important; /* Reduced from default */
 }
 
-/* CHAT BUBBLES */
+/* SIDEBAR */
+[data-testid="stSidebar"] {
+    background-color: #18181B !important;
+    border-right: 1px solid #27272A;
+}
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
+    color: #A78BFA !important;
+}
+
+/* 2. CHAT BUBBLES: WhatsApp-style Text Size */
 [data-testid="stChatMessage"] {
     background-color: #18181B;
     border: 1px solid #27272A;
     border-radius: 16px;
     color: #FAFAFA !important;
+    font-size: 0.95rem !important; /* Smaller text */
+    line-height: 1.5 !important;
 }
-/* User Bubble: Vibrant Gradient */
+[data-testid="stChatMessage"] p {
+    font-size: 0.95rem !important; /* Ensure paragraph text matches */
+}
+
+/* User Bubble */
 [data-testid="stChatMessage"][data-testid*="user"] {
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); /* Indigo to Purple */
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
     border: none;
     color: white !important;
 }
 
-/* INPUT BOX */
+/* 3. INPUT BOX: Fix Padding */
 .stChatInput textarea {
     background-color: #18181B !important;
     color: #FAFAFA !important;
     border: 1px solid #3F3F46 !important;
     border-radius: 24px !important;
+    padding-left: 1.5rem !important; /* Added Padding/Margin for placeholder */
+    font-size: 0.95rem !important;
 }
 
-/* MODERN SERMON CARD (Glassmorphism + Glow) */
+/* SERMON CARD */
 .sermon-card {
     background: #18181B;
     border: 1px solid #27272A;
@@ -61,16 +78,10 @@ html, body, [class*="css"] {
 }
 .sermon-title {
     color: #F8FAFC;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    letter-spacing: -0.02em;
-}
-.sermon-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
 }
 .sermon-details span {
     background-color: #27272A;
@@ -89,17 +100,12 @@ html, body, [class*="css"] {
     border-radius: 12px;
     text-decoration: none;
     font-weight: 600;
-    letter-spacing: 0.5px;
     margin-top: 0.5rem;
-    transition: opacity 0.2s;
-}
-.download-link:hover {
-    opacity: 0.9;
 }
 
 /* HEADERS & DIVIDERS */
 .result-header {
-    color: #A78BFA; /* Soft Purple */
+    color: #A78BFA;
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1px;
