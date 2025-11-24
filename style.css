@@ -41,40 +41,39 @@ h1 {
     color: #A78BFA !important;
 }
 
-/* --- LAYOUT CONSTRAINTS (The Proper Fix) --- */
+/* --- LAYOUT CONSTRAINTS (The "Safe" Fix) --- */
 
-/* 1. Main Chat Area Width */
+/* 1. Main Chat Area */
 .block-container {
-    max-width: 750px !important;
+    max-width: 700px !important;
     padding-left: 1rem !important;
     padding-right: 1rem !important;
     margin: 0 auto !important;
 }
 
-/* 2. Bottom Input Bar Constraint */
-/* We target the inner wrapper of the bottom bar */
-[data-testid="stBottom"] > div {
-    width: 100% !important;
-    max-width: 750px !important; /* Match content width */
-    margin: 0 auto !important;   /* Center it using margins, NOT positioning */
-
-    /* Reset specific properties to prevent glitches */
-    position: relative !important;
-    left: auto !important;
-    transform: none !important;
-}
-
-/* 3. Remove background clutter from the bottom strip */
+/* 2. RESET Bottom Bar Positioning */
+/* We revert to Streamlit's fixed positioning but make the background transparent */
 [data-testid="stBottom"] {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding-bottom: 1rem !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: transparent !important; /* Remove the ugly bar background */
+    z-index: 50 !important; /* Sits below sidebar (sidebar is usually z-index 100) */
+    padding-bottom: 1.5rem !important; /* Lift it up slightly */
 }
 
-/* 4. Style the actual Input Box to pop */
+/* 3. Constrain the Input Box Wrapper */
+/* This centers the box and prevents it from being too wide to hit the sidebar */
+[data-testid="stBottom"] > div {
+    width: 90% !important; /* Responsive width (prevents edge touching) */
+    max-width: 700px !important; /* Max width to avoid sidebar overlap on laptops */
+    margin: 0 auto !important; /* Center horizontally */
+}
+
+/* 4. Style the Input Box Shadow */
 .stChatInput textarea {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important; /* Float effect */
 }
 
 /* --- CHAT BUBBLES --- */
