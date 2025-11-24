@@ -205,3 +205,11 @@ button[kind="secondary"] {
         padding-right: 0.5rem !important;
     }
 }
+
+/* 5. Constrain the Sermon Search Box */
+input[placeholder*="Search sermons"] {
+    width: 66.666% !important; /* 2/3 of the screen */
+    max-width: 700px !important; /* Align with chat box max width */
+    margin: 0 auto !important; /* Center horizontally */
+    display: block !important; /* Ensure centering works */
+}
