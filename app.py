@@ -12,23 +12,19 @@ def local_css(file_name):
 
 local_css("style.css")
 
-# --- UI Header & Sidebar ---
+# --- UI Header ---
 st.title("Sermon Assistant for Citizens of Light Church")
 
+# --- Sidebar ---
 with st.sidebar:
     st.header("About")
     st.markdown("""
     I'm your personal Sermon Assistant. I can help you find sermons from CLC.
-    You can ask me questions in plain English!
 
-    **Here are a few examples:**
+    **Examples:**
     - "I need messages on health"
     - "Give me 5 sermons on love by Pastor Temitope Areo"
-    - "Show me sermons on grace by Apostle Muyiwa Areo"
     - "I need messages from last week"
-    - "I need the message preached on January 22, 2017"
-
-    Send me a request and I’ll fetch it for you!
     """)
     st.markdown("---")
     if st.button("Clear Chat History", type="secondary"):
@@ -38,9 +34,27 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Powered by Gemini 2.5 & Google Sheets")
 
-# --- Initialize Session State ---
+# --- Initialize Session State & Welcome Message ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+    # AUTOMATIC WELCOME MESSAGE
+    welcome_msg = """
+    👋 **Hello! I'm your personal Sermon Assistant.**
+
+    I can help you find sermons from CLC. You can ask me questions in plain English!
+
+    **Try asking:**
+    - "I need messages on health"
+    - "Give me 5 sermons on love by Pastor Temitope Areo"
+    - "Show me sermons on grace by Apostle Muyiwa Areo"
+    - "I need messages from last week"
+    - "I need the message preached on January 22, 2017"
+
+    Send me a request and I’ll fetch it for you!
+    """
+    st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
+
 if "search_memory" not in st.session_state:
     st.session_state.search_memory = {"last_query": "", "results": pd.DataFrame(), "current_index": 0}
 
@@ -65,7 +79,6 @@ if isinstance(mem_results, pd.DataFrame) and not mem_results.empty and isinstanc
                 st.session_state.messages.append({"role": "user", "content": "Show more results"})
                 batch = mem_results.iloc[mem_index : mem_index + 10]
 
-                # HTML Construction (NO INDENTATION TO PREVENT BUGS)
                 response_html = ""
                 for _, row in batch.iterrows():
                     date_val = row.get('Date', pd.NaT)
@@ -91,7 +104,6 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                 search_params = backend.extract_search_terms(prompt)
                 results = backend.search_sermons(search_params, df)
 
-            # Limit Suggestions
             if len(results) > 20 and "Suggested" in results['match_type'].values:
                 exacts = results[results['match_type'] == "Exact"]
                 suggested = results[results['match_type'] == "Suggested"].head(20 - len(exacts))
@@ -99,7 +111,6 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
 
             st.session_state.search_memory["results"] = results
 
-            # AI Caption Construction
             debug_msg = []
             if search_params.get("preacher"): debug_msg.append(f"Preacher: {search_params['preacher']}")
             if search_params.get("keywords"): debug_msg.append(f"Keywords: {search_params['keywords']}")
@@ -122,7 +133,6 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                 else:
                     response_html += f"<p>Found <b>{count}</b> sermons. Here are the results:</p>"
 
-                # Batch Display
                 batch_size = user_limit
                 batch = results.iloc[0:batch_size]
                 st.session_state.search_memory["current_index"] = batch_size
@@ -143,7 +153,6 @@ if prompt := st.chat_input("Search sermons by topic, preacher, scripture, or dat
                     date_val = row.get('Date', pd.NaT)
                     date_str = date_val.strftime('%Y-%m-%d') if pd.notnull(date_val) else "N/A"
 
-                    # STRICT SINGLE LINE HTML TO PREVENT INDENTATION BUGS
                     response_html += f"""<div class="sermon-card"><div class="sermon-title">{row.get('Title', '')}</div><div class="sermon-details"><span>👤 {row.get('Preacher', '')}</span><span>📅 {date_str}</span></div><a href="{row.get('DownloadLink', '#')}" target="_blank" class="download-link">🔗 Download Sermon</a></div>"""
 
         st.markdown(response_html, unsafe_allow_html=True)

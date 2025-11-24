@@ -2,6 +2,7 @@
 
 html, body, [class*="css"] {
     font-family: 'Outfit', sans-serif !important;
+    font-size: 14px; /* Reduced Global Base Size */
 }
 
 /* MAIN BACKGROUND */
@@ -10,15 +11,16 @@ html, body, [class*="css"] {
     color: #FAFAFA !important;
 }
 
-/* 1. TITLE UPDATE: Smaller Size */
+/* TITLE: Desktop Default */
 h1 {
     background: linear-gradient(90deg, #A78BFA, #3B82F6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 800;
     text-align: center;
-    padding-bottom: 1rem;
-    font-size: 2rem !important; /* Reduced from default */
+    padding-bottom: 0.5rem;
+    font-size: 1.8rem !important; /* Reduced Desktop Size */
+    line-height: 1.2 !important;
 }
 
 /* SIDEBAR */
@@ -28,19 +30,25 @@ h1 {
 }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
     color: #A78BFA !important;
+    font-size: 1.1rem !important;
+}
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] li {
+    font-size: 0.85rem !important;
 }
 
-/* 2. CHAT BUBBLES: WhatsApp-style Text Size */
+/* CHAT BUBBLES: Compact Text */
 [data-testid="stChatMessage"] {
     background-color: #18181B;
     border: 1px solid #27272A;
-    border-radius: 16px;
+    border-radius: 12px;
     color: #FAFAFA !important;
-    font-size: 0.95rem !important; /* Smaller text */
-    line-height: 1.5 !important;
+    font-size: 0.9rem !important; /* Smaller Chat Text */
+    line-height: 1.4 !important;
+    padding: 1rem !important;
 }
 [data-testid="stChatMessage"] p {
-    font-size: 0.95rem !important; /* Ensure paragraph text matches */
+    font-size: 0.9rem !important;
+    margin-bottom: 0 !important;
 }
 
 /* User Bubble */
@@ -50,45 +58,53 @@ h1 {
     color: white !important;
 }
 
-/* 3. INPUT BOX: Fix Padding */
+/* INPUT BOX FIXES */
 .stChatInput textarea {
     background-color: #18181B !important;
-    color: #FAFAFA !important;
+    color: #FAFAFA !important; /* Force Text Visibility */
+    caret-color: #3B82F6 !important; /* Blue Cursor */
     border: 1px solid #3F3F46 !important;
     border-radius: 24px !important;
-    padding-left: 1.5rem !important; /* Added Padding/Margin for placeholder */
-    font-size: 0.95rem !important;
+    padding-left: 1rem !important;
+    font-size: 0.9rem !important;
+}
+/* Fix for Placeholder disappearing */
+.stChatInput textarea::placeholder {
+    color: #71717A !important;
+    opacity: 1 !important;
 }
 
-/* SERMON CARD */
+/* SERMON CARD: Compact */
 .sermon-card {
     background: #18181B;
     border: 1px solid #27272A;
-    border-radius: 16px;
-    padding: 1.25rem;
-    margin: 1rem 0;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 0.75rem 0;
+    transition: all 0.2s ease;
 }
 .sermon-card:hover {
     border-color: #6366f1;
-    transform: translateY(-4px);
-    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3);
 }
 .sermon-title {
     color: #F8FAFC;
-    font-size: 1.1rem;
+    font-size: 1rem; /* Reduced Title */
     font-weight: 700;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.01em;
+    margin-bottom: 0.4rem;
+    line-height: 1.3;
+}
+.sermon-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0.8rem;
 }
 .sermon-details span {
     background-color: #27272A;
     color: #A1A1AA;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.75rem; /* Smaller Tags */
     font-weight: 500;
 }
 .download-link {
@@ -96,46 +112,69 @@ h1 {
     text-align: center;
     background: linear-gradient(90deg, #3B82F6 0%, #6366F1 100%);
     color: white !important;
-    padding: 0.75rem;
-    border-radius: 12px;
+    padding: 0.6rem;
+    border-radius: 8px;
     text-decoration: none;
+    font-size: 0.85rem;
     font-weight: 600;
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;
 }
 
 /* HEADERS & DIVIDERS */
 .result-header {
     color: #A78BFA;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 700;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
     border-bottom: 1px solid #27272A;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
 }
 .ai-caption {
     background: rgba(139, 92, 246, 0.1);
     border: 1px solid rgba(139, 92, 246, 0.2);
     color: #E2E8F0;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-    backdrop-filter: blur(10px);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
 }
 
 /* BUTTONS */
 button[kind="primary"] {
     background: white !important;
     color: black !important;
-    font-weight: 700 !important;
-    border-radius: 24px !important;
-    border: none !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    border-radius: 20px !important;
+    height: 2.5rem;
 }
 button[kind="secondary"] {
     border: 1px solid #3F3F46 !important;
     color: #A1A1AA !important;
-    border-radius: 24px !important;
+    border-radius: 20px !important;
+    font-size: 0.8rem !important;
+}
+
+/* --- MOBILE SPECIFIC OVERRIDES --- */
+@media only screen and (max-width: 600px) {
+    h1 {
+        font-size: 1.3rem !important; /* Much smaller on mobile */
+        padding-bottom: 0.25rem;
+    }
+
+    /* Hide sidebar title on mobile if it takes too much space */
+    [data-testid="stSidebar"] {
+        width: 100% !important;
+    }
+
+    /* Compact cards for small screens */
+    .sermon-card {
+        padding: 0.8rem;
+    }
+    .sermon-title {
+        font-size: 0.95rem;
+    }
 }
