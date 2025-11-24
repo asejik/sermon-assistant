@@ -45,16 +45,29 @@ h1 {
 
 /* 1. Main Chat Area Width */
 .block-container {
-    max-width: 750px !important; /* Optimized reading width */
+    max-width: 750px !important;
     padding-left: 1rem !important;
     padding-right: 1rem !important;
     margin: 0 auto !important;
 }
 
-/* 2. Bottom Input Bar Width */
+/* 2. Bottom Input Bar Force-Centering */
+[data-testid="stBottom"] {
+    display: flex !important;
+    justify-content: center !important; /* Flex centering is stronger than margins */
+    padding-bottom: 1rem !important;
+}
+
+/* 3. The Actual Input Box Container */
 [data-testid="stBottom"] > div {
-    max-width: 750px !important;
-    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 750px !important; /* Matches the content width */
+}
+
+/* 4. Remove Extra Side Padding on Input */
+.stChatInput {
+    padding-inline-side: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 /* --- CHAT BUBBLES --- */
