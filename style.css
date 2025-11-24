@@ -41,7 +41,7 @@ h1 {
     color: #A78BFA !important;
 }
 
-/* --- LAYOUT CONSTRAINTS (The 2/3rds Fix) --- */
+/* --- LAYOUT CONSTRAINTS (The Aggressive Fix) --- */
 
 /* 1. Main Chat Area Width */
 .block-container {
@@ -51,23 +51,22 @@ h1 {
     margin: 0 auto !important;
 }
 
-/* 2. Bottom Input Bar Force-Centering */
-[data-testid="stBottom"] {
-    display: flex !important;
-    justify-content: center !important; /* Flex centering is stronger than margins */
-    padding-bottom: 1rem !important;
-}
-
-/* 3. The Actual Input Box Container */
+/* 2. Force Bottom Input Bar to Float in Center */
+/* We use 'fixed' positioning + transform to snap it to the center, ignoring parent width */
 [data-testid="stBottom"] > div {
     width: 100% !important;
-    max-width: 750px !important; /* Matches the content width */
+    max-width: 750px !important; /* Strict cap on width */
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important; /* Perfect centering */
+    bottom: 1rem !important; /* Float slightly above bottom */
+    padding-bottom: 0 !important;
+    z-index: 999 !important; /* Ensure it sits on top */
 }
 
-/* 4. Remove Extra Side Padding on Input */
-.stChatInput {
-    padding-inline-side: 0 !important;
-    padding-bottom: 0 !important;
+/* 3. Add Shadow to make it pop (since it's floating now) */
+.stChatInput textarea {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* --- CHAT BUBBLES --- */
