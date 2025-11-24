@@ -1,8 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
+/* IMPORT FONTS: Poppins (Headers) & Montserrat (Body) */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Poppins:wght@600;700;800&display=swap');
 
+/* BASE FONT (Montserrat) */
 html, body, [class*="css"] {
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 14px; /* Reduced Global Base Size */
+    font-family: 'Montserrat', sans-serif !important;
+    font-size: 14px;
 }
 
 /* MAIN BACKGROUND */
@@ -11,16 +13,23 @@ html, body, [class*="css"] {
     color: #FAFAFA !important;
 }
 
-/* TITLE: Desktop Default */
+/* --- TYPOGRAPHY --- */
+
+/* HEADERS (Poppins) */
+h1, h2, h3, h4, .sermon-title, .result-header {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+/* MAIN TITLE */
 h1 {
     background: linear-gradient(90deg, #A78BFA, #3B82F6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-weight: 800;
+    font-weight: 700;
     text-align: center;
-    padding-bottom: 0.5rem;
-    font-size: 1.8rem !important; /* Reduced Desktop Size */
-    line-height: 1.2 !important;
+    padding-bottom: 1rem;
+    font-size: 2rem !important;
+    line-height: 1.3 !important;
 }
 
 /* SIDEBAR */
@@ -30,25 +39,39 @@ h1 {
 }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
     color: #A78BFA !important;
-    font-size: 1.1rem !important;
-}
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] li {
-    font-size: 0.85rem !important;
 }
 
-/* CHAT BUBBLES: Compact Text */
+/* --- LAYOUT CONSTRAINTS (The 2/3rds Fix) --- */
+
+/* 1. Main Chat Area Width */
+.block-container {
+    max-width: 750px !important; /* Optimized reading width */
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    margin: 0 auto !important;
+}
+
+/* 2. Bottom Input Bar Width */
+[data-testid="stBottom"] > div {
+    max-width: 750px !important;
+    margin: 0 auto !important;
+}
+
+/* --- CHAT BUBBLES --- */
 [data-testid="stChatMessage"] {
     background-color: #18181B;
     border: 1px solid #27272A;
-    border-radius: 12px;
+    border-radius: 16px;
     color: #FAFAFA !important;
-    font-size: 0.9rem !important; /* Smaller Chat Text */
-    line-height: 1.4 !important;
-    padding: 1rem !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    padding: 1.5rem !important; /* More breathing room inside bubbles */
+    margin-bottom: 1.5rem !important; /* Spacing between bubbles */
 }
+
+/* Welcome Message Spacing Fix */
 [data-testid="stChatMessage"] p {
-    font-size: 0.9rem !important;
-    margin-bottom: 0 !important;
+    margin-bottom: 0.5rem !important;
 }
 
 /* User Bubble */
@@ -58,146 +81,108 @@ h1 {
     color: white !important;
 }
 
-/* INPUT BOX FIXES */
+/* --- INPUT BOX --- */
+.stChatInput {
+    padding-bottom: 2rem !important; /* Bottom spacing for the page */
+}
 .stChatInput textarea {
     background-color: #18181B !important;
-    color: #FAFAFA !important; /* Force Text Visibility */
-    caret-color: #3B82F6 !important; /* Blue Cursor */
+    color: #FAFAFA !important;
     border: 1px solid #3F3F46 !important;
     border-radius: 24px !important;
-    padding-left: 1rem !important;
-    font-size: 0.9rem !important;
-}
-/* Fix for Placeholder disappearing */
-.stChatInput textarea::placeholder {
-    color: #71717A !important;
-    opacity: 1 !important;
+    padding-left: 1.2rem !important;
 }
 
-/* SERMON CARD: Compact */
+/* --- COMPONENTS --- */
+
+/* SERMON CARD */
 .sermon-card {
     background: #18181B;
     border: 1px solid #27272A;
-    border-radius: 12px;
-    padding: 1rem;
-    margin: 0.75rem 0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin: 1rem 0;
     transition: all 0.2s ease;
 }
 .sermon-card:hover {
     border-color: #6366f1;
+    transform: translateY(-2px);
 }
 .sermon-title {
     color: #F8FAFC;
-    font-size: 1rem; /* Reduced Title */
-    font-weight: 700;
-    margin-bottom: 0.4rem;
-    line-height: 1.3;
-}
-.sermon-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 0.8rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
 }
 .sermon-details span {
     background-color: #27272A;
     color: #A1A1AA;
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 0.75rem; /* Smaller Tags */
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
     font-weight: 500;
+    margin-right: 8px;
 }
 .download-link {
     display: block;
     text-align: center;
     background: linear-gradient(90deg, #3B82F6 0%, #6366F1 100%);
     color: white !important;
-    padding: 0.6rem;
-    border-radius: 8px;
+    padding: 0.7rem;
+    border-radius: 10px;
     text-decoration: none;
-    font-size: 0.85rem;
+    font-family: 'Poppins', sans-serif;
     font-weight: 600;
-    margin-top: 0.4rem;
+    font-size: 0.9rem;
+    margin-top: 0.8rem;
 }
 
-/* HEADERS & DIVIDERS */
+/* HEADERS */
 .result-header {
     color: #A78BFA;
-    font-size: 0.8rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: 700;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
     border-bottom: 1px solid #27272A;
-    padding-bottom: 0.25rem;
+    padding-bottom: 0.5rem;
 }
 .ai-caption {
     background: rgba(139, 92, 246, 0.1);
     border: 1px solid rgba(139, 92, 246, 0.2);
     color: #E2E8F0;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    margin-bottom: 1rem;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    margin-bottom: 2rem; /* Added bottom margin for spacing */
 }
 
 /* BUTTONS */
 button[kind="primary"] {
     background: white !important;
     color: black !important;
+    font-family: 'Poppins', sans-serif;
     font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    border-radius: 20px !important;
-    height: 2.5rem;
+    border-radius: 24px !important;
+    border: none !important;
 }
 button[kind="secondary"] {
     border: 1px solid #3F3F46 !important;
     color: #A1A1AA !important;
-    border-radius: 20px !important;
-    font-size: 0.8rem !important;
+    border-radius: 24px !important;
+    font-family: 'Montserrat', sans-serif;
 }
 
-/* --- MOBILE SPECIFIC OVERRIDES --- */
+/* MOBILE OVERRIDES */
 @media only screen and (max-width: 600px) {
     h1 {
-        font-size: 1.3rem !important; /* Much smaller on mobile */
-        padding-bottom: 0.25rem;
+        font-size: 1.5rem !important;
     }
-
-    /* Hide sidebar title on mobile if it takes too much space */
-    [data-testid="stSidebar"] {
-        width: 100% !important;
+    .block-container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
     }
-
-    /* Compact cards for small screens */
-    .sermon-card {
-        padding: 0.8rem;
-    }
-    .sermon-title {
-        font-size: 0.95rem;
-    }
-}
-
-/* --- LAYOUT CONSTRAINTS (Center the App) --- */
-
-/* 1. Constrain Main Content Width */
-.block-container {
-    max-width: 850px !important; /* This creates the "Central Column" look */
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-    margin: 0 auto !important; /* Centers it horizontally */
-}
-
-/* 2. Constrain & Center the Bottom Input Bar */
-[data-testid="stBottom"] > div {
-    max-width: 850px !important;
-    margin: 0 auto !important;
-    left: 0 !important;
-    right: 0 !important;
-}
-
-/* 3. Fix Input Box positioning within the constraints */
-.stChatInput {
-    padding-bottom: 1rem !important;
 }
