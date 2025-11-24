@@ -178,3 +178,26 @@ button[kind="secondary"] {
         font-size: 0.95rem;
     }
 }
+
+/* --- LAYOUT CONSTRAINTS (Center the App) --- */
+
+/* 1. Constrain Main Content Width */
+.block-container {
+    max-width: 850px !important; /* This creates the "Central Column" look */
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    margin: 0 auto !important; /* Centers it horizontally */
+}
+
+/* 2. Constrain & Center the Bottom Input Bar */
+[data-testid="stBottom"] > div {
+    max-width: 850px !important;
+    margin: 0 auto !important;
+    left: 0 !important;
+    right: 0 !important;
+}
+
+/* 3. Fix Input Box positioning within the constraints */
+.stChatInput {
+    padding-bottom: 1rem !important;
+}
